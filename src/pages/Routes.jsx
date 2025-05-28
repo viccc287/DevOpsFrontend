@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { routes } from "../lib/api";
 import RouteForm from "../components/RouteForm";
+import MiniMap from "../components/MiniMap";
+import { calculateDistance, formatDistance } from "../lib/distance";
 import {
   Flex,
   Text,
@@ -257,193 +259,236 @@ const RoutesPage = () => {
         </Card>
       ) : (
         <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="6">
-          {routeList.map((route) => (
-            <Card
-              key={route.id}
-              style={{
-                padding: "0",
-                borderRadius: "20px",
-                overflow: "hidden",
-                border: "1px solid var(--gray-6)",
-                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow =
-                  "0 8px 30px rgba(0, 0, 0, 0.12)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 20px rgba(0, 0, 0, 0.08)";
-              }}
-            >
-              {/* Card Header */}
-              <Flex
-                justify="between"
-                align="center"
-                p="4"
+          {routeList.map((route) => {
+            const distance =
+              route.startLat && route.startLng && route.endLat && route.endLng
+                ? calculateDistance(
+                    parseFloat(route.startLat),
+                    parseFloat(route.startLng),
+                    parseFloat(route.endLat),
+                    parseFloat(route.endLng)
+                  )
+                : null;
+
+            return (
+              <Card
+                key={route.id}
                 style={{
-                  background: route.successful
-                    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                    : "linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(217, 119, 6) 100%)",
-                  color: "white",
+                  padding: "0",
+                  borderRadius: "20px",
+                  overflow: "hidden",
+                  border: "1px solid var(--gray-6)",
+                  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 8px 30px rgba(0, 0, 0, 0.12)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 20px rgba(0, 0, 0, 0.08)";
                 }}
               >
-                <Flex align="center" gap="3">
-                  <Avatar
-                    size="2"
-                    fallback={route.name.charAt(0).toUpperCase()}
+                {/* Card Header */}
+                <Flex
+                  justify="between"
+                  align="center"
+                  p="4"
+                  style={{
+                    background: route.successful
+                      ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                      : "linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(217, 119, 6) 100%)",
+                    color: "white",
+                  }}
+                >
+                  <Flex align="center" gap="3">
+                    <Avatar
+                      size="2"
+                      fallback={route.name.charAt(0).toUpperCase()}
+                      style={{
+                        background: "rgba(255, 255, 255, 0.2)",
+                        color: "white",
+                        border: "1px solid rgba(255, 255, 255, 0.3)",
+                      }}
+                    />
+                    <Flex direction="column">
+                      <Text size="3" weight="bold" style={{ color: "white" }}>
+                        {route.name}
+                      </Text>
+                      <Flex align="center" gap="2">
+                        <Flex align="center" gap="1">
+                          <CalendarIcon
+                            height="12"
+                            width="12"
+                            style={{ color: "rgba(255, 255, 255, 0.8)" }}
+                          />
+                          <Text
+                            size="1"
+                            style={{ color: "rgba(255, 255, 255, 0.8)" }}
+                          >
+                            {new Date(
+                              route.routeDate + "T00:00:00"
+                            ).toLocaleDateString()}
+                          </Text>
+                        </Flex>
+                        {distance && (
+                          <>
+                            <Text style={{ color: "rgba(255, 255, 255, 0.6)" }}>
+                              •
+                            </Text>
+                            <Text
+                              size="1"
+                              style={{ color: "rgba(255, 255, 255, 0.8)" }}
+                            >
+                              {formatDistance(distance)}
+                            </Text>
+                          </>
+                        )}
+                      </Flex>
+                    </Flex>
+                  </Flex>
+                  <Badge
+                    variant="soft"
                     style={{
                       background: "rgba(255, 255, 255, 0.2)",
                       color: "white",
                       border: "1px solid rgba(255, 255, 255, 0.3)",
                     }}
-                  />
-                  <Flex direction="column">
-                    <Text size="3" weight="bold" style={{ color: "white" }}>
-                      {route.name}
-                    </Text>
-                    <Flex align="center" gap="1">
-                      <CalendarIcon
-                        height="12"
-                        width="12"
-                        style={{ color: "rgba(255, 255, 255, 0.8)" }}
-                      />
-                      <Text
-                        size="1"
-                        style={{ color: "rgba(255, 255, 255, 0.8)" }}
-                      >
-                        {new Date(
-                          route.routeDate + "T00:00:00"
-                        ).toLocaleDateString()}{" "}
-                      </Text>
-                    </Flex>
-                  </Flex>
+                  >
+                    {route.successful ? (
+                      <Flex align="center" gap="1">
+                        <CheckCircleIcon height="12" width="12" />
+                        Success
+                      </Flex>
+                    ) : (
+                      <Flex align="center" gap="1">
+                        <ClockIcon height="12" width="12" />
+                        Pending
+                      </Flex>
+                    )}
+                  </Badge>
                 </Flex>
-                <Badge
-                  variant="soft"
-                  style={{
-                    background: "rgba(255, 255, 255, 0.2)",
-                    color: "white",
-                    border: "1px solid rgba(255, 255, 255, 0.3)",
-                  }}
+
+                {/* Card Content */}
+                <Flex
+                  direction="column"
+                  gap="4"
+                  p="5"
+                  style={{ background: "white" }}
                 >
-                  {route.successful ? (
-                    <Flex align="center" gap="1">
-                      <CheckCircleIcon height="12" width="12" />
-                      Success
-                    </Flex>
-                  ) : (
-                    <Flex align="center" gap="1">
-                      <ClockIcon height="12" width="12" />
-                      Pending
-                    </Flex>
-                  )}
-                </Badge>
-              </Flex>
+                  {/* Mini Map */}
+                  {route.startLat &&
+                    route.startLng &&
+                    route.endLat &&
+                    route.endLng && (
+                     
+                       
+                        <MiniMap
+                          startLat={route.startLat}
+                          startLng={route.startLng}
+                          endLat={route.endLat}
+                          endLng={route.endLng}
+                      height="150px"
+                        />
+                    )}
 
-              {/* Card Content */}
-              <Flex
-                direction="column"
-                gap="4"
-                p="5"
-                style={{ background: "white" }}
-              >
-                <Flex direction="column" gap="3">
                   <Flex direction="column" gap="3">
-                    <Flex
-                      align="center"
-                      gap="3"
-                      p="3"
-                      style={{
-                        background: "var(--blue-2)",
-                        borderRadius: "8px",
-                        border: "1px solid var(--blue-4)",
-                      }}
-                    >
-                      <UserIcon
-                        height="16"
-                        width="16"
-                        style={{ color: "var(--blue-9)" }}
-                      />
-                      <Flex direction="column" style={{ flex: 1 }}>
-                        <Text size="1" color="gray" weight="medium">
-                          Driver
-                        </Text>
-                        <Text
-                          size="2"
-                          weight="medium"
-                          style={{ color: "var(--blue-11)" }}
-                        >
-                          {route.driverName}
-                        </Text>
+                    <Flex direction="column" gap="3">
+                      <Flex
+                        align="center"
+                        gap="3"
+                        p="3"
+                        style={{
+                          background: "var(--blue-2)",
+                          borderRadius: "8px",
+                          border: "1px solid var(--blue-4)",
+                        }}
+                      >
+                        <UserIcon
+                          height="16"
+                          width="16"
+                          style={{ color: "var(--blue-9)" }}
+                        />
+                        <Flex direction="column" style={{ flex: 1 }}>
+                          <Text size="1" color="gray" weight="medium">
+                            Driver
+                          </Text>
+                          <Text
+                            size="2"
+                            weight="medium"
+                            style={{ color: "var(--blue-11)" }}
+                          >
+                            {route.driverName}
+                          </Text>
+                        </Flex>
                       </Flex>
-                    </Flex>
 
-                    <Flex
-                      align="center"
-                      gap="3"
-                      p="3"
-                      style={{
-                        background: "var(--green-2)",
-                        borderRadius: "8px",
-                        border: "1px solid var(--green-4)",
-                      }}
-                    >
-                      <TruckIcon
-                        height="16"
-                        width="16"
-                        style={{ color: "var(--green-9)" }}
-                      />
-                      <Flex direction="column" style={{ flex: 1 }}>
-                        <Text size="1" color="gray" weight="medium">
-                          Vehicle
-                        </Text>
-                        <Text
-                          size="2"
-                          weight="medium"
-                          style={{ color: "var(--green-11)" }}
-                        >
-                          {route.licensePlate}
-                        </Text>
+                      <Flex
+                        align="center"
+                        gap="3"
+                        p="3"
+                        style={{
+                          background: "var(--green-2)",
+                          borderRadius: "8px",
+                          border: "1px solid var(--green-4)",
+                        }}
+                      >
+                        <TruckIcon
+                          height="16"
+                          width="16"
+                          style={{ color: "var(--green-9)" }}
+                        />
+                        <Flex direction="column" style={{ flex: 1 }}>
+                          <Text size="1" color="gray" weight="medium">
+                            Vehicle
+                          </Text>
+                          <Text
+                            size="2"
+                            weight="medium"
+                            style={{ color: "var(--green-11)" }}
+                          >
+                            {route.licensePlate}
+                          </Text>
+                        </Flex>
                       </Flex>
                     </Flex>
                   </Flex>
-                </Flex>
 
-                <Flex gap="2" style={{ marginTop: "auto" }}>
-                  <Button
-                    variant="soft"
-                    style={{
-                      flex: 1,
-                      borderRadius: "8px",
-                      fontWeight: "500",
-                    }}
-                    onClick={() => handleEdit(route)}
-                  >
-                    <PencilIcon height="14" width="14" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="soft"
-                    color="red"
-                    style={{
-                      flex: 1,
-                      borderRadius: "8px",
-                      fontWeight: "500",
-                    }}
-                    onClick={() => handleDelete(route.id)}
-                  >
-                    <TrashIcon height="14" width="14" />
-                    Delete
-                  </Button>
+                  <Flex gap="2" style={{ marginTop: "auto" }}>
+                    <Button
+                      variant="soft"
+                      style={{
+                        flex: 1,
+                        borderRadius: "8px",
+                        fontWeight: "500",
+                      }}
+                      onClick={() => handleEdit(route)}
+                    >
+                      <PencilIcon height="14" width="14" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="soft"
+                      color="red"
+                      style={{
+                        flex: 1,
+                        borderRadius: "8px",
+                        fontWeight: "500",
+                      }}
+                      onClick={() => handleDelete(route.id)}
+                    >
+                      <TrashIcon height="14" width="14" />
+                      Delete
+                    </Button>
+                  </Flex>
                 </Flex>
-              </Flex>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </Grid>
       )}
     </Flex>

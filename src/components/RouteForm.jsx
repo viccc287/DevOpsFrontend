@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { validateRoute } from "../lib/validation";
 import { vehicles } from "../lib/api";
+import MapSelector from "./MapSelector";
 
 const RouteForm = ({
   route,
@@ -24,11 +25,10 @@ const RouteForm = ({
   });
   const [errors, setErrors] = useState({});
   const [availableVehicles, setAvailableVehicles] = useState([]);
+  const [showMap, setShowMap] = useState(true);
 
   useEffect(() => {
-   
-      loadVehicles();
-    
+    loadVehicles();
 
     if (route) {
       setFormData({
@@ -64,7 +64,6 @@ const RouteForm = ({
     const newValue = type === "checkbox" ? checked : value;
 
     console.log(`Field changed: ${name}, New value: ${newValue}`);
-    
 
     setFormData((prev) => ({ ...prev, [name]: newValue }));
 
@@ -109,194 +108,279 @@ const RouteForm = ({
     onSubmit(submitData);
   };
 
+  const handleStartSelect = (position) => {
+    setFormData((prev) => ({
+      ...prev,
+      startLat: position.lat.toString(),
+      startLng: position.lng.toString(),
+    }));
+
+    // Clear errors for these fields
+    if (errors.startLat || errors.startLng) {
+      setErrors((prev) => ({
+        ...prev,
+        startLat: null,
+        startLng: null,
+      }));
+    }
+  };
+
+  const handleEndSelect = (position) => {
+    setFormData((prev) => ({
+      ...prev,
+      endLat: position.lat.toString(),
+      endLng: position.lng.toString(),
+    }));
+
+    // Clear errors for these fields
+    if (errors.endLat || errors.endLng) {
+      setErrors((prev) => ({
+        ...prev,
+        endLat: null,
+        endLng: null,
+      }));
+    }
+  };
+
+  const getStartPosition = () => {
+    if (formData.startLat && formData.startLng) {
+      return {
+        lat: parseFloat(formData.startLat),
+        lng: parseFloat(formData.startLng),
+      };
+    }
+    return null;
+  };
+
+  const getEndPosition = () => {
+    if (formData.endLat && formData.endLng) {
+      return {
+        lat: parseFloat(formData.endLat),
+        lng: parseFloat(formData.endLng),
+      };
+    }
+    return null;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Fields that are always required */}
-        
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Route Name *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.name ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Route Date *
-              </label>
-              <input
-                type="date"
-                name="routeDate"
-                value={formData.routeDate}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.routeDate ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.routeDate && (
-                <p className="mt-1 text-sm text-red-600">{errors.routeDate}</p>
-              )}
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Route Name *
+          </label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.name ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+          )}
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vehicle *
-              </label>
-              <select
-                name="vehicleId"
-                value={formData.vehicleId}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.vehicleId ? "border-red-500" : "border-gray-300"
-                }`}
-              >
-                <option value="">Select a vehicle</option>
-                {availableVehicles.map((vehicle) => (
-                  <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.licensePlate} - {vehicle.brand} {vehicle.model}
-                  </option>
-                ))}
-              </select>
-              {errors.vehicleId && (
-                <p className="mt-1 text-sm text-red-600">{errors.vehicleId}</p>
-              )}
-            </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Route Date *
+          </label>
+          <input
+            type="date"
+            name="routeDate"
+            value={formData.routeDate}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.routeDate ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.routeDate && (
+            <p className="mt-1 text-sm text-red-600">{errors.routeDate}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Vehicle *
+          </label>
+          <select
+            name="vehicleId"
+            value={formData.vehicleId}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.vehicleId ? "border-red-500" : "border-gray-300"
+            }`}
+          >
+            <option value="">Select a vehicle</option>
+            {availableVehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.licensePlate} - {vehicle.brand} {vehicle.model}
+              </option>
+            ))}
+          </select>
+          {errors.vehicleId && (
+            <p className="mt-1 text-sm text-red-600">{errors.vehicleId}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Route Coordinates Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900">
+            Route Coordinates
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowMap(!showMap)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            {showMap ? "Hide Map" : "Show Map"}
+          </button>
+        </div>
+
+        {showMap && (
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <MapSelector
+              startPosition={getStartPosition()}
+              endPosition={getEndPosition()}
+              onStartSelect={handleStartSelect}
+              onEndSelect={handleEndSelect}
+              height="450px"
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Latitude *
+            </label>
+            <input
+              type="number"
+              step="any"
+              name="startLat"
+              value={formData.startLat}
+              onChange={handleChange}
+              placeholder="Click on map or enter manually"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.startLat ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.startLat && (
+              <p className="mt-1 text-sm text-red-600">{errors.startLat}</p>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Latitude *
-              </label>
-              <input
-                type="number"
-                step="any"
-                name="startLat"
-                value={formData.startLat}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.startLat ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.startLat && (
-                <p className="mt-1 text-sm text-red-600">{errors.startLat}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Longitude *
-              </label>
-              <input
-                type="number"
-                step="any"
-                name="startLng"
-                value={formData.startLng}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.startLng ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.startLng && (
-                <p className="mt-1 text-sm text-red-600">{errors.startLng}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                End Latitude *
-              </label>
-              <input
-                type="number"
-                step="any"
-                name="endLat"
-                value={formData.endLat}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.endLat ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.endLat && (
-                <p className="mt-1 text-sm text-red-600">{errors.endLat}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                End Longitude *
-              </label>
-              <input
-                type="number"
-                step="any"
-                name="endLng"
-                value={formData.endLng}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.endLng ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.endLng && (
-                <p className="mt-1 text-sm text-red-600">{errors.endLng}</p>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Longitude *
+            </label>
+            <input
+              type="number"
+              step="any"
+              name="startLng"
+              value={formData.startLng}
+              onChange={handleChange}
+              placeholder="Click on map or enter manually"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.startLng ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.startLng && (
+              <p className="mt-1 text-sm text-red-600">{errors.startLng}</p>
+            )}
           </div>
-        
-      
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Latitude *
+            </label>
+            <input
+              type="number"
+              step="any"
+              name="endLat"
+              value={formData.endLat}
+              onChange={handleChange}
+              placeholder="Click on map or enter manually"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.endLat ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.endLat && (
+              <p className="mt-1 text-sm text-red-600">{errors.endLat}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Longitude *
+            </label>
+            <input
+              type="number"
+              step="any"
+              name="endLng"
+              value={formData.endLng}
+              onChange={handleChange}
+              placeholder="Click on map or enter manually"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.endLng ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.endLng && (
+              <p className="mt-1 text-sm text-red-600">{errors.endLng}</p>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Fields that can be updated (show for both create and update) */}
-      { isUpdate && ( <div className="space-y-4">
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            name="successful"
-            checked={formData.successful}
-            onChange={handleChange}
-            className="mr-2"
-          />
-          <label className="text-sm font-medium text-gray-700">
-            Route completed successfully
-          </label>
-        </div>
+      {isUpdate && (
+        <div className="space-y-4">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              name="successful"
+              checked={formData.successful}
+              onChange={handleChange}
+              className="mr-2"
+            />
+            <label className="text-sm font-medium text-gray-700">
+              Route completed successfully
+            </label>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Problem Description
-          </label>
-          <textarea
-            name="problemDescription"
-            value={formData.problemDescription}
-            onChange={handleChange}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Problem Description
+            </label>
+            <textarea
+              name="problemDescription"
+              value={formData.problemDescription}
+              onChange={handleChange}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Comments
-          </label>
-          <textarea
-            name="comments"
-            value={formData.comments}
-            onChange={handleChange}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Comments
+            </label>
+            <textarea
+              name="comments"
+              value={formData.comments}
+              onChange={handleChange}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
-      </div>)}
-     
+      )}
 
       <div className="flex space-x-4">
         <button
