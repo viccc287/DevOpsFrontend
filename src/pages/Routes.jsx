@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import { routes } from "../lib/api";
+import RouteForm from "../components/RouteForm";
 import {
   Flex,
   Text,
@@ -19,13 +22,15 @@ import {
   CalendarIcon,
   TruckIcon,
   UserIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
-import { routes } from "../lib/api";
-import toast from "react-hot-toast";
 
 const RoutesPage = () => {
   const [routeList, setRouteList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchRoutes();
@@ -33,6 +38,7 @@ const RoutesPage = () => {
 
   const fetchRoutes = async () => {
     try {
+      setLoading(true);
       const response = await routes.getAll();
       setRouteList(response.data);
     } catch (error) {
@@ -41,6 +47,79 @@ const RoutesPage = () => {
       setLoading(false);
     }
   };
+
+  const handleCreate = () => {
+    setEditingRoute(null);
+    setShowForm(true);
+  };
+
+  const handleEdit = (route) => {
+    setEditingRoute(route);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this route?")) {
+      return;
+    }
+
+    try {
+      await routes.delete(id);
+      toast.success("Route deleted successfully");
+      fetchRoutes();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete route");
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    try {
+      setFormLoading(true);
+
+      if (editingRoute) {
+        await routes.update(editingRoute.id, formData);
+        toast.success("Route updated successfully");
+      } else {
+        await routes.create(formData);
+        toast.success("Route created successfully");
+      }
+
+      setShowForm(false);
+      setEditingRoute(null);
+      fetchRoutes();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save route");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingRoute(null);
+  };
+
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {editingRoute ? "Edit Route" : "Create Route"}
+          </h1>
+        </div>
+
+        <div className="bg-white shadow rounded-lg p-6">
+          <RouteForm
+            route={editingRoute}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            isLoading={formLoading}
+            isUpdate={!!editingRoute}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Flex direction="column" gap="8">
@@ -74,6 +153,7 @@ const RoutesPage = () => {
               borderRadius: "12px",
               fontWeight: "600",
             }}
+            onClick={handleCreate}
           >
             <PlusIcon height="18" width="18" />
             Add Route
@@ -168,6 +248,7 @@ const RoutesPage = () => {
                 borderRadius: "12px",
                 fontWeight: "600",
               }}
+              onClick={handleCreate}
             >
               <PlusIcon height="18" width="18" />
               Create Your First Route
@@ -207,7 +288,7 @@ const RoutesPage = () => {
                 style={{
                   background: route.successful
                     ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                    : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    : "linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(217, 119, 6) 100%)",
                   color: "white",
                 }}
               >
@@ -235,7 +316,9 @@ const RoutesPage = () => {
                         size="1"
                         style={{ color: "rgba(255, 255, 255, 0.8)" }}
                       >
-                        {new Date(route.routeDate).toLocaleDateString()}
+                        {new Date(
+                          route.routeDate + "T00:00:00"
+                        ).toLocaleDateString()}{" "}
                       </Text>
                     </Flex>
                   </Flex>
@@ -255,8 +338,8 @@ const RoutesPage = () => {
                     </Flex>
                   ) : (
                     <Flex align="center" gap="1">
-                      <XCircleIcon height="12" width="12" />
-                      Failed
+                      <ClockIcon height="12" width="12" />
+                      Pending
                     </Flex>
                   )}
                 </Badge>
@@ -339,6 +422,7 @@ const RoutesPage = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleEdit(route)}
                   >
                     <PencilIcon height="14" width="14" />
                     Edit
@@ -351,6 +435,7 @@ const RoutesPage = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleDelete(route.id)}
                   >
                     <TrashIcon height="14" width="14" />
                     Delete

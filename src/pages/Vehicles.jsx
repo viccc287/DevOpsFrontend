@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import { vehicles } from "../lib/api";
+import VehicleForm from "../components/VehicleForm";
 import {
   Flex,
   Text,
@@ -17,32 +20,115 @@ import {
   CheckCircleIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
-import { vehicles } from "../lib/api";
-import toast from "react-hot-toast";
 
 const Vehicles = () => {
-  const [vehicleList, setVehicleList] = useState([]);
+  const [vehiclesList, setVehiclesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
-    fetchVehicles();
+    loadVehicles();
   }, []);
 
-  const fetchVehicles = async () => {
+  const loadVehicles = async () => {
     try {
+      setLoading(true);
       const response = await vehicles.getAll();
-      setVehicleList(response.data);
+      setVehiclesList(response.data);
     } catch (error) {
-      toast.error("Failed to fetch vehicles");
+      toast.error("Failed to load vehicles");
+      console.error("Error loading vehicles:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCreate = () => {
+    setEditingVehicle(null);
+    setShowForm(true);
+  };
+
+  const handleEdit = (vehicle) => {
+    setEditingVehicle(vehicle);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this vehicle?")) {
+      return;
+    }
+
+    try {
+      await vehicles.delete(id);
+      toast.success("Vehicle deleted successfully");
+      loadVehicles();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete vehicle");
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    try {
+      setFormLoading(true);
+
+      if (editingVehicle) {
+        await vehicles.update(editingVehicle.id, formData);
+        toast.success("Vehicle updated successfully");
+      } else {
+        await vehicles.create(formData);
+        toast.success("Vehicle created successfully");
+      }
+
+      setShowForm(false);
+      setEditingVehicle(null);
+      loadVehicles();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save vehicle");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingVehicle(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {editingVehicle ? "Edit Vehicle" : "Create Vehicle"}
+          </h1>
+        </div>
+
+        <div className="bg-white shadow rounded-lg p-6">
+          <VehicleForm
+            vehicle={editingVehicle}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            isLoading={formLoading}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Flex direction="column" gap="8">
       {/* Header */}
-      <Flex direction="column" gap="4">
+      <Flex direction="column" gap="4" >
         <Flex justify="between" align="center" wrap="wrap" gap="4">
           <Flex align="center" gap="3">
             <TruckIcon
@@ -71,16 +157,17 @@ const Vehicles = () => {
               borderRadius: "12px",
               fontWeight: "600",
             }}
+            onClick={handleCreate}
           >
             <PlusIcon height="18" width="18" />
             Add Vehicle
           </Button>
         </Flex>
 
-        {!loading && vehicleList.length > 0 && (
+        {!loading && vehiclesList.length > 0 && (
           <Text size="3" color="gray">
-            Managing {vehicleList.length} vehicle
-            {vehicleList.length !== 1 ? "s" : ""} in your fleet
+            Managing {vehiclesList.length} vehicle
+            {vehiclesList.length !== 1 ? "s" : ""} in your fleet
           </Text>
         )}
       </Flex>
@@ -108,7 +195,7 @@ const Vehicles = () => {
             Loading vehicles...
           </Text>
         </Flex>
-      ) : vehicleList.length === 0 ? (
+      ) : vehiclesList.length === 0 ? (
         <Card
           style={{
             padding: "0",
@@ -165,6 +252,7 @@ const Vehicles = () => {
                 borderRadius: "12px",
                 fontWeight: "600",
               }}
+              onClick={handleCreate}
             >
               <PlusIcon height="18" width="18" />
               Add Your First Vehicle
@@ -173,7 +261,7 @@ const Vehicles = () => {
         </Card>
       ) : (
         <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="6">
-          {vehicleList.map((vehicle) => (
+          {vehiclesList.map((vehicle) => (
             <Card
               key={vehicle.id}
               style={{
@@ -208,17 +296,18 @@ const Vehicles = () => {
                   color: "white",
                 }}
               >
-                <Flex align="center" gap="3">
+                <Flex align="center" gap="3" wrap={"wrap"}>
                   <Avatar
-                    size="2"
+                    size="6"
                     fallback={vehicle.brand.charAt(0).toUpperCase()}
                     style={{
                       background: "rgba(255, 255, 255, 0.2)",
                       color: "white",
                       border: "1px solid rgba(255, 255, 255, 0.3)",
                     }}
+                    src={vehicle.photo || ""}
                   />
-                  <Text size="3" weight="bold" style={{ color: "white" }}>
+                  <Text size="4" weight="bold" style={{ color: "white" }}>
                     {vehicle.licensePlate}
                   </Text>
                 </Flex>
@@ -292,6 +381,7 @@ const Vehicles = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleEdit(vehicle)}
                   >
                     <PencilIcon height="14" width="14" />
                     Edit
@@ -304,6 +394,8 @@ const Vehicles = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleDelete(vehicle.id)}
+                    disabled={vehicle.isAssigned}
                   >
                     <TrashIcon height="14" width="14" />
                     Delete

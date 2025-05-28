@@ -62,12 +62,57 @@ export const dashboard = {
   },
 };
 
+// Helper function to construct full image URLs
+const getFullImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath; // Already a full URL
+  return `${API_BASE_URL.replace("/api", "")}${
+    imagePath.startsWith("/") ? imagePath : "/" + imagePath
+  }`;
+};
+
+// Helper function to process vehicle data and add full image URLs
+const processVehicleData = (vehicle) => {
+  if (vehicle.photo) {
+    vehicle.photo = getFullImageUrl(vehicle.photo);
+  }
+  return vehicle;
+};
+
 // Vehicles
 export const vehicles = {
-  getAll: () => api.get("/vehicles"),
-  getById: (id) => api.get(`/vehicles/${id}`),
-  create: (data) => api.post("/vehicles", data),
-  update: (id, data) => api.put(`/vehicles/${id}`, data),
+  getAll: async () => {
+    const response = await api.get("/vehicles");
+    response.data = response.data.map(processVehicleData);
+    return response;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/vehicles/${id}`);
+    response.data = processVehicleData(response.data);
+    return response;
+  },
+  create: (data) => {
+    // Handle FormData for image upload
+    if (data instanceof FormData) {
+      return api.post("/vehicles", data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+    }
+    return api.post("/vehicles", data);
+  },
+  update: (id, data) => {
+    // Handle FormData for image upload
+    if (data instanceof FormData) {
+      return api.put(`/vehicles/${id}`, data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+    }
+    return api.put(`/vehicles/${id}`, data);
+  },
   delete: (id) => api.delete(`/vehicles/${id}`),
 };
 
@@ -104,6 +149,7 @@ export const admins = {
   getById: (id) => api.get(`/admins/${id}`),
   update: (id, data) => api.put(`/admins/${id}`, data),
   delete: (id) => api.delete(`/admins/${id}`),
+  register: (data) => api.post("/admins/register", data),
 };
 
 export default api;
