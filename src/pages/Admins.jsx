@@ -18,11 +18,15 @@ import {
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import { admins } from "../lib/api";
+import AdminForm from "../components/AdminForm";
 import toast from "react-hot-toast";
 
 const Admins = () => {
   const [adminList, setAdminList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchAdmins();
@@ -38,6 +42,83 @@ const Admins = () => {
       setLoading(false);
     }
   };
+
+  const handleCreate = () => {
+    setEditingAdmin(null);
+    setShowForm(true);
+  };
+
+  const handleEdit = (admin) => {
+    setEditingAdmin(admin);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (
+      !window.confirm("Are you sure you want to delete this administrator?")
+    ) {
+      return;
+    }
+
+    try {
+      await admins.delete(id);
+      toast.success("Administrator deleted successfully");
+      fetchAdmins();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to delete administrator"
+      );
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    try {
+      setFormLoading(true);
+
+      if (editingAdmin) {
+        await admins.update(editingAdmin.id, formData);
+        toast.success("Administrator updated successfully");
+      } else {
+        await admins.register(formData);
+        toast.success("Administrator created successfully");
+      }
+
+      setShowForm(false);
+      setEditingAdmin(null);
+      fetchAdmins();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to save administrator"
+      );
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingAdmin(null);
+  };
+
+  if (showForm) {
+    return (
+      <Flex direction="column" gap="6">
+        <Flex align="center" gap="3">
+          <UserIcon height="24" width="24" style={{ color: "var(--blue-9)" }} />
+          <Heading size="6">
+            {editingAdmin ? "Edit Administrator" : "Create Administrator"}
+          </Heading>
+        </Flex>
+
+        <AdminForm
+          admin={editingAdmin}
+          onSubmit={handleFormSubmit}
+          onCancel={handleFormCancel}
+          isLoading={formLoading}
+        />
+      </Flex>
+    );
+  }
 
   return (
     <Flex direction="column" gap="8">
@@ -71,6 +152,7 @@ const Admins = () => {
               borderRadius: "12px",
               fontWeight: "600",
             }}
+            onClick={handleCreate}
           >
             <PlusIcon height="18" width="18" />
             Add Admin
@@ -174,6 +256,7 @@ const Admins = () => {
                 borderRadius: "12px",
                 fontWeight: "600",
               }}
+              onClick={handleCreate}
             >
               <PlusIcon height="18" width="18" />
               Invite Administrator
@@ -381,6 +464,7 @@ const Admins = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleEdit(admin)}
                   >
                     <PencilIcon height="14" width="14" />
                     Edit
@@ -393,6 +477,7 @@ const Admins = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleDelete(admin.id)}
                   >
                     <TrashIcon height="14" width="14" />
                     Delete

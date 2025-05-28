@@ -1,9 +1,18 @@
 import { useState, useEffect } from "react";
-import { Flex, Text, Card, Heading, Button, Grid, Badge, Avatar } from "@radix-ui/themes";
-import { 
-  PlusIcon, 
-  UserGroupIcon, 
-  PencilIcon, 
+import {
+  Flex,
+  Text,
+  Card,
+  Heading,
+  Button,
+  Grid,
+  Badge,
+  Avatar,
+} from "@radix-ui/themes";
+import {
+  PlusIcon,
+  UserGroupIcon,
+  PencilIcon,
   TrashIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -12,10 +21,14 @@ import {
 } from "@heroicons/react/24/outline";
 import { drivers } from "../lib/api";
 import toast from "react-hot-toast";
+import DriverForm from "../components/DriverForm";
 
 const Drivers = () => {
   const [driverList, setDriverList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingDriver, setEditingDriver] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchDrivers();
@@ -32,17 +45,94 @@ const Drivers = () => {
     }
   };
 
+  const handleCreate = () => {
+    setEditingDriver(null);
+    setShowForm(true);
+  };
+
+  const handleEdit = (driver) => {
+    setEditingDriver(driver);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this driver?")) {
+      return;
+    }
+
+    try {
+      await drivers.delete(id);
+      toast.success("Driver deleted successfully");
+      fetchDrivers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete driver");
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    try {
+      setFormLoading(true);
+
+      if (editingDriver) {
+        await drivers.update(editingDriver.id, formData);
+        toast.success("Driver updated successfully");
+      } else {
+        await drivers.create(formData);
+        toast.success("Driver created successfully");
+      }
+
+      setShowForm(false);
+      setEditingDriver(null);
+      fetchDrivers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save driver");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingDriver(null);
+  };
+
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {editingDriver ? "Edit Driver" : "Create Driver"}
+          </h1>
+        </div>
+
+        <div className="bg-white shadow rounded-lg p-6">
+          <DriverForm
+            driver={editingDriver}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            isLoading={formLoading}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Flex direction="column" gap="8">
       {/* Header */}
       <Flex direction="column" gap="4">
         <Flex justify="between" align="center" wrap="wrap" gap="4">
           <Flex align="center" gap="3">
-            <UserGroupIcon height="32" width="32" style={{ color: "var(--orange-9)" }} />
-            <Heading 
+            <UserGroupIcon
+              height="32"
+              width="32"
+              style={{ color: "var(--orange-9)" }}
+            />
+            <Heading
               size="8"
               style={{
-                background: "linear-gradient(135deg, var(--orange-9) 0%, var(--red-9) 100%)",
+                background:
+                  "linear-gradient(135deg, var(--orange-9) 0%, var(--red-9) 100%)",
                 backgroundClip: "text",
                 WebkitBackgroundClip: "text",
                 color: "transparent",
@@ -54,28 +144,31 @@ const Drivers = () => {
           <Button
             size="3"
             style={{
-              background: "linear-gradient(135deg, var(--orange-9) 0%, var(--red-9) 100%)",
+              background:
+                "linear-gradient(135deg, var(--orange-9) 0%, var(--red-9) 100%)",
               borderRadius: "12px",
               fontWeight: "600",
             }}
+            onClick={handleCreate}
           >
             <PlusIcon height="18" width="18" />
             Add Driver
           </Button>
         </Flex>
-        
+
         {!loading && driverList.length > 0 && (
           <Text size="3" color="gray">
-            Managing {driverList.length} driver{driverList.length !== 1 ? 's' : ''} in your fleet
+            Managing {driverList.length} driver
+            {driverList.length !== 1 ? "s" : ""} in your fleet
           </Text>
         )}
       </Flex>
 
       {/* Content */}
       {loading ? (
-        <Flex 
-          justify="center" 
-          align="center" 
+        <Flex
+          justify="center"
+          align="center"
           direction="column"
           gap="4"
           style={{ padding: "4rem" }}
@@ -90,7 +183,9 @@ const Drivers = () => {
               animation: "spin 1s linear infinite",
             }}
           />
-          <Text size="3" color="gray">Loading drivers...</Text>
+          <Text size="3" color="gray">
+            Loading drivers...
+          </Text>
         </Flex>
       ) : driverList.length === 0 ? (
         <Card
@@ -107,7 +202,8 @@ const Drivers = () => {
             align="center"
             gap="6"
             style={{
-              background: "linear-gradient(135deg, var(--orange-3) 0%, var(--red-3) 100%)",
+              background:
+                "linear-gradient(135deg, var(--orange-3) 0%, var(--red-3) 100%)",
               padding: "4rem 2rem",
             }}
           >
@@ -122,23 +218,33 @@ const Drivers = () => {
                 border: "1px solid rgba(255, 255, 255, 0.5)",
               }}
             >
-              <UserGroupIcon height="40" width="40" style={{ color: "var(--orange-9)" }} />
+              <UserGroupIcon
+                height="40"
+                width="40"
+                style={{ color: "var(--orange-9)" }}
+              />
             </Flex>
             <Flex direction="column" align="center" gap="3">
               <Heading size="6" style={{ color: "var(--orange-12)" }}>
                 No drivers found
               </Heading>
-              <Text size="4" style={{ color: "var(--orange-11)", textAlign: "center" }}>
-                Start building your team by adding your first driver to the system.
+              <Text
+                size="4"
+                style={{ color: "var(--orange-11)", textAlign: "center" }}
+              >
+                Start building your team by adding your first driver to the
+                system.
               </Text>
             </Flex>
             <Button
               size="3"
               style={{
-                background: "linear-gradient(135deg, var(--orange-9) 0%, var(--red-9) 100%)",
+                background:
+                  "linear-gradient(135deg, var(--orange-9) 0%, var(--red-9) 100%)",
                 borderRadius: "12px",
                 fontWeight: "600",
               }}
+              onClick={handleCreate}
             >
               <PlusIcon height="18" width="18" />
               Add Your First Driver
@@ -161,11 +267,13 @@ const Drivers = () => {
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow = "0 8px 30px rgba(0, 0, 0, 0.12)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 30px rgba(0, 0, 0, 0.12)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 20px rgba(0, 0, 0, 0.08)";
               }}
             >
               {/* Card Header */}
@@ -174,7 +282,7 @@ const Drivers = () => {
                 align="center"
                 p="4"
                 style={{
-                  background: driver.isAssigned 
+                  background: driver.isAssigned
                     ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
                     : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                   color: "white",
@@ -183,7 +291,11 @@ const Drivers = () => {
                 <Flex align="center" gap="3">
                   <Avatar
                     size="2"
-                    fallback={driver.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    fallback={driver.fullName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .substring(0, 2)}
                     style={{
                       background: "rgba(255, 255, 255, 0.2)",
                       color: "white",
@@ -192,9 +304,12 @@ const Drivers = () => {
                   />
                   <Flex direction="column">
                     <Text size="3" weight="bold" style={{ color: "white" }}>
-                      {driver.fullName.split(' ')[0]}
+                      {driver.fullName.split(" ")[0]}
                     </Text>
-                    <Text size="1" style={{ color: "rgba(255, 255, 255, 0.8)" }}>
+                    <Text
+                      size="1"
+                      style={{ color: "rgba(255, 255, 255, 0.8)" }}
+                    >
                       License: {driver.licenseNumber}
                     </Text>
                   </Flex>
@@ -222,36 +337,71 @@ const Drivers = () => {
               </Flex>
 
               {/* Card Content */}
-              <Flex direction="column" gap="4" p="5" style={{ background: "white" }}>
+              <Flex
+                direction="column"
+                gap="4"
+                p="5"
+                style={{ background: "white" }}
+              >
                 <Flex direction="column" gap="3">
                   <Heading size="5" style={{ color: "var(--gray-12)" }}>
                     {driver.fullName}
                   </Heading>
-                  
+
                   <Flex direction="column" gap="3">
-                    <Flex align="center" gap="3" p="3" style={{ 
-                      background: "var(--gray-2)", 
-                      borderRadius: "8px",
-                      border: "1px solid var(--gray-4)",
-                    }}>
-                      <IdentificationIcon height="16" width="16" style={{ color: "var(--gray-9)" }} />
+                    <Flex
+                      align="center"
+                      gap="3"
+                      p="3"
+                      style={{
+                        background: "var(--gray-2)",
+                        borderRadius: "8px",
+                        border: "1px solid var(--gray-4)",
+                      }}
+                    >
+                      <IdentificationIcon
+                        height="16"
+                        width="16"
+                        style={{ color: "var(--gray-9)" }}
+                      />
                       <Flex direction="column" style={{ flex: 1 }}>
-                        <Text size="1" color="gray" weight="medium">CURP</Text>
-                        <Text size="2" weight="medium" style={{ fontFamily: "monospace" }}>
+                        <Text size="1" color="gray" weight="medium">
+                          CURP
+                        </Text>
+                        <Text
+                          size="2"
+                          weight="medium"
+                          style={{ fontFamily: "monospace" }}
+                        >
                           {driver.curp}
                         </Text>
                       </Flex>
                     </Flex>
 
-                    <Flex align="center" gap="3" p="3" style={{ 
-                      background: "var(--green-2)", 
-                      borderRadius: "8px",
-                      border: "1px solid var(--green-4)",
-                    }}>
-                      <CurrencyDollarIcon height="16" width="16" style={{ color: "var(--green-9)" }} />
+                    <Flex
+                      align="center"
+                      gap="3"
+                      p="3"
+                      style={{
+                        background: "var(--green-2)",
+                        borderRadius: "8px",
+                        border: "1px solid var(--green-4)",
+                      }}
+                    >
+                      <CurrencyDollarIcon
+                        height="16"
+                        width="16"
+                        style={{ color: "var(--green-9)" }}
+                      />
                       <Flex direction="column" style={{ flex: 1 }}>
-                        <Text size="1" color="gray" weight="medium">Monthly Salary</Text>
-                        <Text size="3" weight="bold" style={{ color: "var(--green-11)" }}>
+                        <Text size="1" color="gray" weight="medium">
+                          Monthly Salary
+                        </Text>
+                        <Text
+                          size="3"
+                          weight="bold"
+                          style={{ color: "var(--green-11)" }}
+                        >
                           ${driver.monthlySalary.toLocaleString()}
                         </Text>
                       </Flex>
@@ -267,6 +417,7 @@ const Drivers = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleEdit(driver)}
                   >
                     <PencilIcon height="14" width="14" />
                     Edit
@@ -279,6 +430,8 @@ const Drivers = () => {
                       borderRadius: "8px",
                       fontWeight: "500",
                     }}
+                    onClick={() => handleDelete(driver.id)}
+                    disabled={driver.isAssigned}
                   >
                     <TrashIcon height="14" width="14" />
                     Delete

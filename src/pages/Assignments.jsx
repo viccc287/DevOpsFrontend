@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import { assignments } from "../lib/api";
+import AssignmentForm from "../components/AssignmentForm";
 import {
   Flex,
   Text,
@@ -19,28 +22,121 @@ import {
   CalendarIcon,
   TruckIcon,
   UserIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
-import { assignments } from "../lib/api";
-import toast from "react-hot-toast";
 
 const Assignments = () => {
-  const [assignmentList, setAssignmentList] = useState([]);
+  const [assignmentsList, setAssignmentsList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
-    fetchAssignments();
+    loadAssignments();
   }, []);
 
-  const fetchAssignments = async () => {
+  const loadAssignments = async () => {
     try {
+      setLoading(true);
       const response = await assignments.getAll();
-      setAssignmentList(response.data);
+      setAssignmentsList(response.data);
     } catch (error) {
-      toast.error("Failed to fetch assignments");
+      toast.error("Failed to load assignments");
+      console.error("Error loading assignments:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCreate = () => {
+    setShowForm(true);
+  };
+
+  const handleUnassignVehicle = async (vehicleId) => {
+    if (!window.confirm("Are you sure you want to unassign this vehicle?")) {
+      return;
+    }
+
+    try {
+      await assignments.unassignVehicle(vehicleId);
+      toast.success("Vehicle unassigned successfully");
+      loadAssignments();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to unassign vehicle"
+      );
+    }
+  };
+
+  const handleUnassignDriver = async (driverId) => {
+    if (!window.confirm("Are you sure you want to unassign this driver?")) {
+      return;
+    }
+
+    try {
+      await assignments.unassignDriver(driverId);
+      toast.success("Driver unassigned successfully");
+      loadAssignments();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to unassign driver");
+    }
+  };
+
+  const handleFormSubmit = async (formData) => {
+    try {
+      setFormLoading(true);
+      await assignments.create(formData);
+      toast.success("Assignment created successfully");
+      setShowForm(false);
+      loadAssignments();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to create assignment"
+      );
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Create Assignment
+          </h1>
+        </div>
+
+        <div className="bg-white shadow rounded-lg p-6">
+          <AssignmentForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            isLoading={formLoading}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Separate active and historical assignments
+  const activeAssignments = assignmentsList.filter(
+    (assignment) => !assignment.endDate
+  );
+  const historicalAssignments = assignmentsList.filter(
+    (assignment) => assignment.endDate
+  );
 
   return (
     <Flex direction="column" gap="8">
@@ -51,13 +147,13 @@ const Assignments = () => {
             <ClipboardDocumentListIcon
               height="32"
               width="32"
-              style={{ color: "var(--indigo-9)" }}
+              style={{ color: "var(--purple-9)" }}
             />
             <Heading
               size="8"
               style={{
                 background:
-                  "linear-gradient(135deg, var(--indigo-9) 0%, var(--purple-9) 100%)",
+                  "linear-gradient(135deg, var(--purple-9) 0%, var(--blue-9) 100%)",
                 backgroundClip: "text",
                 WebkitBackgroundClip: "text",
                 color: "transparent",
@@ -70,20 +166,23 @@ const Assignments = () => {
             size="3"
             style={{
               background:
-                "linear-gradient(135deg, var(--indigo-9) 0%, var(--purple-9) 100%)",
+                "linear-gradient(135deg, var(--purple-9) 0%, var(--blue-9) 100%)",
               borderRadius: "12px",
               fontWeight: "600",
             }}
+            onClick={handleCreate}
           >
             <PlusIcon height="18" width="18" />
             Create Assignment
           </Button>
         </Flex>
 
-        {!loading && assignmentList.length > 0 && (
+        {!loading && assignmentsList.length > 0 && (
           <Text size="3" color="gray">
-            Managing {assignmentList.length} assignment
-            {assignmentList.length !== 1 ? "s" : ""} in your fleet
+            Managing {assignmentsList.length} assignment
+            {assignmentsList.length !== 1 ? "s" : ""} (
+            {activeAssignments.length} active, {historicalAssignments.length}{" "}
+            completed)
           </Text>
         )}
       </Flex>
@@ -102,7 +201,7 @@ const Assignments = () => {
               width: "40px",
               height: "40px",
               border: "3px solid var(--gray-6)",
-              borderTop: "3px solid var(--indigo-9)",
+              borderTop: "3px solid var(--purple-9)",
               borderRadius: "50%",
               animation: "spin 1s linear infinite",
             }}
@@ -111,7 +210,7 @@ const Assignments = () => {
             Loading assignments...
           </Text>
         </Flex>
-      ) : assignmentList.length === 0 ? (
+      ) : assignmentsList.length === 0 ? (
         <Card
           style={{
             padding: "0",
@@ -127,7 +226,7 @@ const Assignments = () => {
             gap="6"
             style={{
               background:
-                "linear-gradient(135deg, var(--indigo-3) 0%, var(--purple-3) 100%)",
+                "linear-gradient(135deg, var(--purple-3) 0%, var(--blue-3) 100%)",
               padding: "4rem 2rem",
             }}
           >
@@ -145,29 +244,30 @@ const Assignments = () => {
               <ClipboardDocumentListIcon
                 height="40"
                 width="40"
-                style={{ color: "var(--indigo-9)" }}
+                style={{ color: "var(--purple-9)" }}
               />
             </Flex>
             <Flex direction="column" align="center" gap="3">
-              <Heading size="6" style={{ color: "var(--indigo-12)" }}>
+              <Heading size="6" style={{ color: "var(--purple-12)" }}>
                 No assignments found
               </Heading>
               <Text
                 size="4"
-                style={{ color: "var(--indigo-11)", textAlign: "center" }}
+                style={{ color: "var(--purple-11)", textAlign: "center" }}
               >
-                Start by creating your first vehicle-driver assignment to manage
-                your fleet operations.
+                Start by creating your first assignment to connect drivers with
+                vehicles.
               </Text>
             </Flex>
             <Button
               size="3"
               style={{
                 background:
-                  "linear-gradient(135deg, var(--indigo-9) 0%, var(--purple-9) 100%)",
+                  "linear-gradient(135deg, var(--purple-9) 0%, var(--blue-9) 100%)",
                 borderRadius: "12px",
                 fontWeight: "600",
               }}
+              onClick={handleCreate}
             >
               <PlusIcon height="18" width="18" />
               Create Your First Assignment
@@ -175,77 +275,37 @@ const Assignments = () => {
           </Flex>
         </Card>
       ) : (
-        <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="6">
-          {assignmentList.map((assignment) => (
+        <Flex direction="column" gap="6">
+          {/* Active Assignments */}
+          {activeAssignments.length > 0 && (
             <Card
-              key={assignment.id}
               style={{
                 padding: "0",
                 borderRadius: "20px",
                 overflow: "hidden",
                 border: "1px solid var(--gray-6)",
                 boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow =
-                  "0 8px 30px rgba(0, 0, 0, 0.12)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 20px rgba(0, 0, 0, 0.08)";
               }}
             >
-              {/* Card Header */}
+              {/* Section Header */}
               <Flex
-                justify="between"
                 align="center"
-                p="4"
+                gap="3"
+                p="5"
                 style={{
-                  background: assignment.endDate
-                    ? "linear-gradient(135deg, #6b7280 0%, #4b5563 100%)"
-                    : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  background:
+                    "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                   color: "white",
                 }}
               >
-                <Flex align="center" gap="3">
-                  <Avatar
-                    size="2"
-                    fallback={assignment.driverName
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .substring(0, 2)}
-                    style={{
-                      background: "rgba(255, 255, 255, 0.2)",
-                      color: "white",
-                      border: "1px solid rgba(255, 255, 255, 0.3)",
-                    }}
-                  />
-                  <Flex direction="column">
-                    <Text size="3" weight="bold" style={{ color: "white" }}>
-                      {assignment.driverName.split(" ")[0]}
-                    </Text>
-                    <Flex align="center" gap="1">
-                      <CalendarIcon
-                        height="12"
-                        width="12"
-                        style={{ color: "rgba(255, 255, 255, 0.8)" }}
-                      />
-                      <Text
-                        size="1"
-                        style={{ color: "rgba(255, 255, 255, 0.8)" }}
-                      >
-                        {new Date(
-                          assignment.assignmentDate
-                        ).toLocaleDateString()}
-                      </Text>
-                    </Flex>
-                  </Flex>
-                </Flex>
+                <CheckCircleIcon
+                  height="24"
+                  width="24"
+                  style={{ color: "white" }}
+                />
+                <Heading size="5" style={{ color: "white" }}>
+                  Active Assignments
+                </Heading>
                 <Badge
                   variant="soft"
                   style={{
@@ -254,151 +314,245 @@ const Assignments = () => {
                     border: "1px solid rgba(255, 255, 255, 0.3)",
                   }}
                 >
-                  {assignment.endDate ? (
-                    <Flex align="center" gap="1">
-                      <XCircleIcon height="12" width="12" />
-                      Ended
-                    </Flex>
-                  ) : (
-                    <Flex align="center" gap="1">
-                      <CheckCircleIcon height="12" width="12" />
-                      Active
-                    </Flex>
-                  )}
+                  {activeAssignments.length}
                 </Badge>
               </Flex>
 
-              {/* Card Content */}
-              <Flex
-                direction="column"
-                gap="4"
-                p="5"
-                style={{ background: "white" }}
-              >
-                <Flex direction="column" gap="3">
-                  <Flex direction="column" gap="3">
-                    <Flex
-                      align="center"
-                      gap="3"
-                      p="3"
-                      style={{
-                        background: "var(--blue-2)",
-                        borderRadius: "8px",
-                        border: "1px solid var(--blue-4)",
-                      }}
-                    >
-                      <UserIcon
-                        height="16"
-                        width="16"
-                        style={{ color: "var(--blue-9)" }}
-                      />
-                      <Flex direction="column" style={{ flex: 1 }}>
-                        <Text size="1" color="gray" weight="medium">
-                          Driver
-                        </Text>
-                        <Text
-                          size="2"
-                          weight="medium"
-                          style={{ color: "var(--blue-11)" }}
-                        >
-                          {assignment.driverName}
-                        </Text>
-                      </Flex>
-                    </Flex>
-
-                    <Flex
-                      align="center"
-                      gap="3"
-                      p="3"
-                      style={{
-                        background: "var(--green-2)",
-                        borderRadius: "8px",
-                        border: "1px solid var(--green-4)",
-                      }}
-                    >
-                      <TruckIcon
-                        height="16"
-                        width="16"
-                        style={{ color: "var(--green-9)" }}
-                      />
-                      <Flex direction="column" style={{ flex: 1 }}>
-                        <Text size="1" color="gray" weight="medium">
-                          Vehicle
-                        </Text>
-                        <Text
-                          size="2"
-                          weight="medium"
-                          style={{ color: "var(--green-11)" }}
-                        >
-                          {assignment.licensePlate}
-                        </Text>
-                      </Flex>
-                    </Flex>
-
-                    {assignment.endDate && (
-                      <Flex
-                        align="center"
-                        gap="3"
-                        p="3"
+              {/* List Content */}
+              <Flex direction="column" style={{ background: "white" }}>
+                {activeAssignments.map((assignment, index) => (
+                  <Flex
+                    key={assignment.id}
+                    align="center"
+                    justify="between"
+                    p="4"
+                    style={{
+                      borderBottom:
+                        index < activeAssignments.length - 1
+                          ? "1px solid var(--gray-4)"
+                          : "none",
+                      transition: "background-color 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "var(--gray-2)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <Flex align="center" gap="4" style={{ flex: 1 }}>
+                      <Avatar
+                        size="3"
+                        fallback={assignment.driverName.charAt(0).toUpperCase()}
                         style={{
-                          background: "var(--gray-2)",
-                          borderRadius: "8px",
-                          border: "1px solid var(--gray-4)",
+                          background:
+                            "linear-gradient(135deg, var(--blue-9) 0%, var(--purple-9) 100%)",
+                          color: "white",
                         }}
-                      >
-                        <CalendarIcon
-                          height="16"
-                          width="16"
-                          style={{ color: "var(--gray-9)" }}
-                        />
-                        <Flex direction="column" style={{ flex: 1 }}>
-                          <Text size="1" color="gray" weight="medium">
-                            End Date
+                      />
+
+                      <Flex direction="column" gap="1" style={{ flex: 1 }}>
+                        <Flex align="center" gap="3">
+                          <Text
+                            size="3"
+                            weight="bold"
+                            style={{ color: "var(--gray-12)" }}
+                          >
+                            {assignment.licensePlate}
+                          </Text>
+                          <Text size="2" style={{ color: "var(--gray-10)" }}>
+                            ↔
                           </Text>
                           <Text
-                            size="2"
+                            size="3"
                             weight="medium"
-                            style={{ color: "var(--gray-11)" }}
+                            style={{ color: "var(--blue-11)" }}
                           >
+                            {assignment.driverName}
+                          </Text>
+                        </Flex>
+
+                        <Flex align="center" gap="2">
+                          <CalendarIcon
+                            height="14"
+                            width="14"
+                            style={{ color: "var(--gray-9)" }}
+                          />
+                          <Text size="2" color="gray">
+                            Assigned:{" "}
+                            {new Date(
+                              assignment.assignmentDate
+                            ).toLocaleDateString()}
+                          </Text>
+                        </Flex>
+                      </Flex>
+
+                      <Flex gap="2">
+                        <Button
+                          size="2"
+                          variant="soft"
+                          color="red"
+                          style={{
+                            borderRadius: "8px",
+                            fontWeight: "500",
+                          }}
+                          onClick={() =>
+                            handleUnassignVehicle(assignment.vehicleId)
+                          }
+                        >
+                          <XCircleIcon height="14" width="14" />
+                          Unassign Vehicle
+                        </Button>
+                        <Button
+                          size="2"
+                          variant="soft"
+                          color="red"
+                          style={{
+                            borderRadius: "8px",
+                            fontWeight: "500",
+                          }}
+                          onClick={() =>
+                            handleUnassignDriver(assignment.driverId)
+                          }
+                        >
+                          <XCircleIcon height="14" width="14" />
+                          Unassign Driver
+                        </Button>
+                      </Flex>
+                    </Flex>
+                  </Flex>
+                ))}
+              </Flex>
+            </Card>
+          )}
+
+          {/* Historical Assignments */}
+          {historicalAssignments.length > 0 && (
+            <Card
+              style={{
+                padding: "0",
+                borderRadius: "20px",
+                overflow: "hidden",
+                border: "1px solid var(--gray-6)",
+                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+              }}
+            >
+              {/* Section Header */}
+              <Flex
+                align="center"
+                gap="3"
+                p="5"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--gray-7) 0%, var(--gray-8) 100%)",
+                  color: "white",
+                }}
+              >
+                <ClockIcon height="24" width="24" style={{ color: "white" }} />
+                <Heading size="5" style={{ color: "white" }}>
+                  Assignment History
+                </Heading>
+                <Badge
+                  variant="soft"
+                  style={{
+                    background: "rgba(255, 255, 255, 0.2)",
+                    color: "white",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                  }}
+                >
+                  {historicalAssignments.length}
+                </Badge>
+              </Flex>
+
+              {/* List Content */}
+              <Flex direction="column" style={{ background: "white" }}>
+                {historicalAssignments.map((assignment, index) => (
+                  <Flex
+                    key={assignment.id}
+                    align="center"
+                    justify="between"
+                    p="4"
+                    style={{
+                      borderBottom:
+                        index < historicalAssignments.length - 1
+                          ? "1px solid var(--gray-4)"
+                          : "none",
+                      transition: "background-color 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "var(--gray-2)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <Flex align="center" gap="4" style={{ flex: 1 }}>
+                      <Avatar
+                        size="3"
+                        fallback={assignment.driverName.charAt(0).toUpperCase()}
+                        style={{
+                          background: "var(--gray-6)",
+                          color: "white",
+                        }}
+                      />
+
+                      <Flex direction="column" gap="1" style={{ flex: 1 }}>
+                        <Flex align="center" gap="3">
+                          <Text
+                            size="3"
+                            weight="bold"
+                            style={{ color: "var(--gray-12)" }}
+                          >
+                            {assignment.licensePlate}
+                          </Text>
+                          <Text size="2" style={{ color: "var(--gray-10)" }}>
+                            ↔
+                          </Text>
+                          <Text
+                            size="3"
+                            weight="medium"
+                            style={{ color: "var(--blue-11)" }}
+                          >
+                            {assignment.driverName}
+                          </Text>
+                        </Flex>
+
+                        <Flex align="center" gap="2">
+                          <CalendarIcon
+                            height="14"
+                            width="14"
+                            style={{ color: "var(--gray-9)" }}
+                          />
+                          <Text size="2" color="gray">
+                            {new Date(
+                              assignment.assignmentDate
+                            ).toLocaleDateString()}{" "}
+                            -{" "}
                             {new Date(assignment.endDate).toLocaleDateString()}
                           </Text>
                         </Flex>
                       </Flex>
-                    )}
-                  </Flex>
-                </Flex>
 
-                <Flex gap="2" style={{ marginTop: "auto" }}>
-                  {!assignment.endDate && (
-                    <Button
-                      variant="soft"
-                      color="orange"
-                      style={{
-                        flex: 1,
-                        borderRadius: "8px",
-                        fontWeight: "500",
-                      }}
-                    >
-                      End Assignment
-                    </Button>
-                  )}
-                  <Button
-                    variant="soft"
-                    color="red"
-                    style={{
-                      flex: assignment.endDate ? 1 : 0.5,
-                      borderRadius: "8px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    <TrashIcon height="14" width="14" />
-                    Delete
-                  </Button>
-                </Flex>
+                      <Badge
+                        variant="soft"
+                        style={{
+                          background: "var(--gray-3)",
+                          color: "var(--gray-11)",
+                          border: "1px solid var(--gray-6)",
+                        }}
+                      >
+                        <Flex align="center" gap="1">
+                          <CheckCircleIcon height="12" width="12" />
+                          Completed
+                        </Flex>
+                      </Badge>
+                    </Flex>
+                  </Flex>
+                ))}
               </Flex>
             </Card>
-          ))}
-        </Grid>
+          )}
+        </Flex>
       )}
     </Flex>
   );
