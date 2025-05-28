@@ -1,6 +1,22 @@
 import { useState, useEffect } from "react";
-import { Flex, Text, Card, Heading, Button, Table } from "@radix-ui/themes";
-import { PlusIcon, TruckIcon } from "@heroicons/react/24/outline";
+import {
+  Flex,
+  Text,
+  Card,
+  Heading,
+  Button,
+  Grid,
+  Badge,
+  Avatar,
+} from "@radix-ui/themes";
+import {
+  PlusIcon,
+  TruckIcon,
+  PencilIcon,
+  TrashIcon,
+  CheckCircleIcon,
+  ClockIcon,
+} from "@heroicons/react/24/outline";
 import { vehicles } from "../lib/api";
 import toast from "react-hot-toast";
 
@@ -24,83 +40,280 @@ const Vehicles = () => {
   };
 
   return (
-    <Flex direction="column" gap="4">
-      <Flex justify="between" align="center">
-        <Heading size="6">Vehicles</Heading>
-        <Button>
-          <PlusIcon height="16" width="16" />
-          Add Vehicle
-        </Button>
+    <Flex direction="column" gap="8">
+      {/* Header */}
+      <Flex direction="column" gap="4">
+        <Flex justify="between" align="center" wrap="wrap" gap="4">
+          <Flex align="center" gap="3">
+            <TruckIcon
+              height="32"
+              width="32"
+              style={{ color: "var(--green-9)" }}
+            />
+            <Heading
+              size="8"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--green-9) 0%, var(--blue-9) 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                color: "transparent",
+              }}
+            >
+              Vehicles
+            </Heading>
+          </Flex>
+          <Button
+            size="3"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--green-9) 0%, var(--blue-9) 100%)",
+              borderRadius: "12px",
+              fontWeight: "600",
+            }}
+          >
+            <PlusIcon height="18" width="18" />
+            Add Vehicle
+          </Button>
+        </Flex>
+
+        {!loading && vehicleList.length > 0 && (
+          <Text size="3" color="gray">
+            Managing {vehicleList.length} vehicle
+            {vehicleList.length !== 1 ? "s" : ""} in your fleet
+          </Text>
+        )}
       </Flex>
 
-      <Card>
-        {loading ? (
-          <Flex justify="center" align="center" style={{ padding: "2rem" }}>
-            <Text>Loading vehicles...</Text>
-          </Flex>
-        ) : vehicleList.length === 0 ? (
+      {/* Content */}
+      {loading ? (
+        <Flex
+          justify="center"
+          align="center"
+          direction="column"
+          gap="4"
+          style={{ padding: "4rem" }}
+        >
+          <Flex
+            style={{
+              width: "40px",
+              height: "40px",
+              border: "3px solid var(--gray-6)",
+              borderTop: "3px solid var(--green-9)",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <Text size="3" color="gray">
+            Loading vehicles...
+          </Text>
+        </Flex>
+      ) : vehicleList.length === 0 ? (
+        <Card
+          style={{
+            padding: "0",
+            borderRadius: "20px",
+            overflow: "hidden",
+            border: "1px solid var(--gray-6)",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+          }}
+        >
           <Flex
             direction="column"
             align="center"
-            gap="3"
-            style={{ padding: "3rem" }}
+            gap="6"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--green-3) 0%, var(--blue-3) 100%)",
+              padding: "4rem 2rem",
+            }}
           >
-            <TruckIcon
-              height="48"
-              width="48"
-              style={{ color: "var(--gray-8)" }}
-            />
-            <Text size="4" weight="medium">
-              No vehicles found
-            </Text>
-            <Text color="gray">
-              Start by adding your first vehicle to the fleet.
-            </Text>
-            <Button>
-              <PlusIcon height="16" width="16" />
-              Add Vehicle
+            <Flex
+              align="center"
+              justify="center"
+              style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "20px",
+                background: "rgba(255, 255, 255, 0.8)",
+                border: "1px solid rgba(255, 255, 255, 0.5)",
+              }}
+            >
+              <TruckIcon
+                height="40"
+                width="40"
+                style={{ color: "var(--green-9)" }}
+              />
+            </Flex>
+            <Flex direction="column" align="center" gap="3">
+              <Heading size="6" style={{ color: "var(--green-12)" }}>
+                No vehicles found
+              </Heading>
+              <Text
+                size="4"
+                style={{ color: "var(--green-11)", textAlign: "center" }}
+              >
+                Start building your fleet by adding your first vehicle to the
+                system.
+              </Text>
+            </Flex>
+            <Button
+              size="3"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--green-9) 0%, var(--blue-9) 100%)",
+                borderRadius: "12px",
+                fontWeight: "600",
+              }}
+            >
+              <PlusIcon height="18" width="18" />
+              Add Your First Vehicle
             </Button>
           </Flex>
-        ) : (
-          <Table.Root>
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeaderCell>Brand</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Model</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>License Plate</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>VIN</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Actions</Table.ColumnHeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {vehicleList.map((vehicle) => (
-                <Table.Row key={vehicle.id}>
-                  <Table.Cell>{vehicle.brand}</Table.Cell>
-                  <Table.Cell>{vehicle.model}</Table.Cell>
-                  <Table.Cell>{vehicle.licensePlate}</Table.Cell>
-                  <Table.Cell>{vehicle.vin}</Table.Cell>
-                  <Table.Cell>
-                    <Text color={vehicle.isAssigned ? "orange" : "green"}>
-                      {vehicle.isAssigned ? "Assigned" : "Available"}
-                    </Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Flex gap="2">
-                      <Button size="1" variant="soft">
-                        Edit
-                      </Button>
-                      <Button size="1" variant="soft" color="red">
-                        Delete
-                      </Button>
+        </Card>
+      ) : (
+        <Grid columns={{ initial: "1", sm: "2", lg: "3" }} gap="6">
+          {vehicleList.map((vehicle) => (
+            <Card
+              key={vehicle.id}
+              style={{
+                padding: "0",
+                borderRadius: "20px",
+                overflow: "hidden",
+                border: "1px solid var(--gray-6)",
+                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 30px rgba(0, 0, 0, 0.12)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 20px rgba(0, 0, 0, 0.08)";
+              }}
+            >
+              {/* Card Header */}
+              <Flex
+                justify="between"
+                align="center"
+                p="4"
+                style={{
+                  background: vehicle.isAssigned
+                    ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                    : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "white",
+                }}
+              >
+                <Flex align="center" gap="3">
+                  <Avatar
+                    size="2"
+                    fallback={vehicle.brand.charAt(0).toUpperCase()}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.2)",
+                      color: "white",
+                      border: "1px solid rgba(255, 255, 255, 0.3)",
+                    }}
+                  />
+                  <Text size="3" weight="bold" style={{ color: "white" }}>
+                    {vehicle.licensePlate}
+                  </Text>
+                </Flex>
+                <Badge
+                  variant="soft"
+                  style={{
+                    background: "rgba(255, 255, 255, 0.2)",
+                    color: "white",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                  }}
+                >
+                  {vehicle.isAssigned ? (
+                    <Flex align="center" gap="1">
+                      <ClockIcon height="12" width="12" />
+                      Assigned
                     </Flex>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Root>
-        )}
-      </Card>
+                  ) : (
+                    <Flex align="center" gap="1">
+                      <CheckCircleIcon height="12" width="12" />
+                      Available
+                    </Flex>
+                  )}
+                </Badge>
+              </Flex>
+
+              {/* Card Content */}
+              <Flex
+                direction="column"
+                gap="4"
+                p="5"
+                style={{ background: "white" }}
+              >
+                <Flex direction="column" gap="3">
+                  <Heading size="5" style={{ color: "var(--gray-12)" }}>
+                    {vehicle.brand} {vehicle.model}
+                  </Heading>
+
+                  <Flex direction="column" gap="2">
+                    <Flex justify="between" align="center">
+                      <Text size="2" color="gray" weight="medium">
+                        VIN Number
+                      </Text>
+                      <Text
+                        size="2"
+                        weight="medium"
+                        style={{ fontFamily: "monospace" }}
+                      >
+                        {vehicle.vin}
+                      </Text>
+                    </Flex>
+
+                    <Flex justify="between" align="center">
+                      <Text size="2" color="gray" weight="medium">
+                        Status
+                      </Text>
+                      <Badge
+                        color={vehicle.isAssigned ? "orange" : "green"}
+                        variant="soft"
+                      >
+                        {vehicle.isAssigned ? "In Use" : "Available"}
+                      </Badge>
+                    </Flex>
+                  </Flex>
+                </Flex>
+
+                <Flex gap="2" style={{ marginTop: "auto" }}>
+                  <Button
+                    variant="soft"
+                    style={{
+                      flex: 1,
+                      borderRadius: "8px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    <PencilIcon height="14" width="14" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="soft"
+                    color="red"
+                    style={{
+                      flex: 1,
+                      borderRadius: "8px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    <TrashIcon height="14" width="14" />
+                    Delete
+                  </Button>
+                </Flex>
+              </Flex>
+            </Card>
+          ))}
+        </Grid>
+      )}
     </Flex>
   );
 };
