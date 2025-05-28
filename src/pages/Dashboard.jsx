@@ -42,8 +42,6 @@ const Dashboard = () => {
       icon: UserIcon,
       color: "blue",
       gradient: "linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)",
-      change: "+2.5%",
-      changeType: "positive",
     },
     {
       title: "Total Vehicles",
@@ -51,8 +49,6 @@ const Dashboard = () => {
       icon: TruckIcon,
       color: "green",
       gradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-      change: "+5.2%",
-      changeType: "positive",
     },
     {
       title: "Total Drivers",
@@ -60,8 +56,6 @@ const Dashboard = () => {
       icon: UserGroupIcon,
       color: "orange",
       gradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-      change: "+1.8%",
-      changeType: "positive",
     },
     {
       title: "Today's Routes",
@@ -69,8 +63,6 @@ const Dashboard = () => {
       icon: MapIcon,
       color: "purple",
       gradient: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
-      change: "-0.5%",
-      changeType: "neutral",
     },
   ];
 
@@ -183,16 +175,7 @@ const Dashboard = () => {
                 }}
               >
                 <Icon height="28" width="28" style={{ color: "white" }} />
-                <Badge
-                  variant="soft"
-                  style={{
-                    background: "rgba(255, 255, 255, 0.2)",
-                    color: "white",
-                    border: "1px solid rgba(255, 255, 255, 0.3)",
-                  }}
-                >
-                  {metric.change}
-                </Badge>
+               
               </Flex>
 
               {/* Content */}
@@ -222,7 +205,7 @@ const Dashboard = () => {
       </Grid>
 
       {/* Welcome Section */}
-      <Grid columns={{ initial: "1", lg: "2" }} gap="6">
+      <Flex gap="6">
         <Card
           style={{
             padding: "0",
@@ -263,89 +246,8 @@ const Dashboard = () => {
           </Flex>
         </Card>
 
-        <Card
-          style={{
-            padding: "0",
-            borderRadius: "20px",
-            overflow: "hidden",
-            border: "1px solid var(--gray-6)",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-          }}
-        >
-          <Flex
-            direction="column"
-            gap="4"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--green-3) 0%, var(--blue-3) 100%)",
-              padding: "2rem",
-            }}
-          >
-            <Heading size="6" style={{ color: "var(--green-12)" }}>
-              Quick Actions
-            </Heading>
-            <Flex direction="column" gap="3">
-              <Flex
-                align="center"
-                gap="3"
-                p="3"
-                style={{
-                  background: "rgba(255, 255, 255, 0.8)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.5)",
-                }}
-              >
-                <TruckIcon
-                  height="20"
-                  width="20"
-                  style={{ color: "var(--green-9)" }}
-                />
-                <Text size="3" weight="medium">
-                  Add New Vehicle
-                </Text>
-              </Flex>
-              <Flex
-                align="center"
-                gap="3"
-                p="3"
-                style={{
-                  background: "rgba(255, 255, 255, 0.8)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.5)",
-                }}
-              >
-                <UserGroupIcon
-                  height="20"
-                  width="20"
-                  style={{ color: "var(--blue-9)" }}
-                />
-                <Text size="3" weight="medium">
-                  Register Driver
-                </Text>
-              </Flex>
-              <Flex
-                align="center"
-                gap="3"
-                p="3"
-                style={{
-                  background: "rgba(255, 255, 255, 0.8)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.5)",
-                }}
-              >
-                <MapIcon
-                  height="20"
-                  width="20"
-                  style={{ color: "var(--purple-9)" }}
-                />
-                <Text size="3" weight="medium">
-                  Create Route
-                </Text>
-              </Flex>
-            </Flex>
-          </Flex>
-        </Card>
-      </Grid>
+   
+      </Flex>
     </Flex>
   );
 };
