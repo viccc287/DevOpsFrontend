@@ -5,6 +5,7 @@ import {
   EnvelopeIcon,
   LockClosedIcon,
   KeyIcon,
+  TruckIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -42,69 +43,173 @@ const Register = () => {
       direction="column"
       align="center"
       justify="center"
-      style={{ minHeight: "100vh", padding: "1rem" }}
+      style={{
+        minHeight: "100vh",
+        padding: "1rem",
+        background:
+          "linear-gradient(135deg, var(--green-2) 0%, var(--blue-2) 100%)",
+      }}
     >
-      <Card style={{ maxWidth: "400px", width: "100%", padding: "2rem" }}>
-        <Flex direction="column" gap="4">
-          <Flex direction="column" align="center" gap="2">
-            <Heading size="6">Admin Registration</Heading>
-            <Text color="gray" size="2">
-              Create your admin account
-            </Text>
-          </Flex>
+      {/* Brand Header */}
+      <Flex
+        direction="column"
+        align="center"
+        gap="6"
+        style={{ marginBottom: "2rem" }}
+      >
+        <Flex
+          align="center"
+          justify="center"
+          style={{
+            width: "80px",
+            height: "80px",
+            borderRadius: "20px",
+            background:
+              "linear-gradient(135deg, var(--green-9) 0%, var(--blue-9) 100%)",
+            boxShadow: "0 8px 30px rgba(0, 0, 0, 0.12)",
+          }}
+        >
+          <TruckIcon height="40" width="40" style={{ color: "white" }} />
+        </Flex>
+        <Flex direction="column" align="center" gap="2">
+          <Heading
+            size="8"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--green-9) 0%, var(--blue-9) 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            Join Fleet Manager
+          </Heading>
+          <Text size="4" color="gray" style={{ textAlign: "center" }}>
+            Create your administrator account
+          </Text>
+        </Flex>
+      </Flex>
 
+      <Card
+        style={{
+          maxWidth: "420px",
+          width: "100%",
+          padding: "0",
+          borderRadius: "24px",
+          overflow: "hidden",
+          border: "1px solid var(--gray-6)",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        {/* Card Header */}
+        <Flex
+          direction="column"
+          align="center"
+          gap="3"
+          p="6"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--green-3) 0%, var(--blue-3) 100%)",
+          }}
+        >
+          <Heading size="6" style={{ color: "var(--green-12)" }}>
+            Create Account
+          </Heading>
+          <Text
+            size="3"
+            style={{
+              color: "var(--green-11)",
+              textAlign: "center",
+            }}
+          >
+            You'll need an invitation code to register
+          </Text>
+        </Flex>
+
+        {/* Form Content */}
+        <Flex direction="column" gap="6" p="6" style={{ background: "white" }}>
           <form onSubmit={handleSubmit}>
-            <Flex direction="column" gap="3">
-              <Flex direction="column" gap="1">
-                <Text size="2" weight="medium">
-                  Email
+            <Flex direction="column" gap="4">
+              <Flex direction="column" gap="2">
+                <Text
+                  size="3"
+                  weight="medium"
+                  style={{ color: "var(--gray-12)" }}
+                >
+                  Email Address
                 </Text>
                 <TextField.Root
                   name="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="admin@company.com"
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  size="3"
+                  style={{
+                    borderRadius: "12px",
+                    border: "2px solid var(--gray-6)",
+                    transition: "border-color 0.2s ease",
+                  }}
                 >
                   <TextField.Slot>
-                    <EnvelopeIcon height="16" width="16" />
+                    <EnvelopeIcon height="18" width="18" />
                   </TextField.Slot>
                 </TextField.Root>
               </Flex>
 
-              <Flex direction="column" gap="1">
-                <Text size="2" weight="medium">
+              <Flex direction="column" gap="2">
+                <Text
+                  size="3"
+                  weight="medium"
+                  style={{ color: "var(--gray-12)" }}
+                >
                   Password
                 </Text>
                 <TextField.Root
                   name="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Create a strong password"
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  size="3"
+                  style={{
+                    borderRadius: "12px",
+                    border: "2px solid var(--gray-6)",
+                    transition: "border-color 0.2s ease",
+                  }}
                 >
                   <TextField.Slot>
-                    <LockClosedIcon height="16" width="16" />
+                    <LockClosedIcon height="18" width="18" />
                   </TextField.Slot>
                 </TextField.Root>
               </Flex>
 
-              <Flex direction="column" gap="1">
-                <Text size="2" weight="medium">
+              <Flex direction="column" gap="2">
+                <Text
+                  size="3"
+                  weight="medium"
+                  style={{ color: "var(--gray-12)" }}
+                >
                   Invitation Code
                 </Text>
                 <TextField.Root
                   name="invitationCode"
                   type="text"
-                  placeholder="Enter invitation code"
+                  placeholder="Enter your invitation code"
                   value={formData.invitationCode}
                   onChange={handleChange}
                   required
+                  size="3"
+                  style={{
+                    borderRadius: "12px",
+                    border: "2px solid var(--gray-6)",
+                    transition: "border-color 0.2s ease",
+                  }}
                 >
                   <TextField.Slot>
-                    <KeyIcon height="16" width="16" />
+                    <KeyIcon height="18" width="18" />
                   </TextField.Slot>
                 </TextField.Root>
               </Flex>
@@ -112,16 +217,31 @@ const Register = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                style={{ marginTop: "1rem" }}
+                size="3"
+                style={{
+                  marginTop: "1rem",
+                  borderRadius: "12px",
+                  background:
+                    "linear-gradient(135deg, var(--green-9) 0%, var(--blue-9) 100%)",
+                  fontWeight: "600",
+                  padding: "16px",
+                }}
               >
-                {loading ? "Creating account..." : "Register"}
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
             </Flex>
           </form>
 
-          <Text size="2" align="center">
+          <Text size="3" align="center" style={{ color: "var(--gray-11)" }}>
             Already have an account?{" "}
-            <Link to="/login" style={{ color: "var(--accent-9)" }}>
+            <Link
+              to="/login"
+              style={{
+                color: "var(--green-9)",
+                textDecoration: "none",
+                fontWeight: "600",
+              }}
+            >
               Sign in here
             </Link>
           </Text>
