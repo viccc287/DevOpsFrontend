@@ -1,0 +1,137 @@
+pipeline {
+    agent any
+    
+    environment {
+        VM_HOST = '192.168.0.35' 
+        VM_USER = 'devops'
+        NGINX_ROOT = '/usr/share/nginx/html'
+        BACKUP_DIR = '/usr/share/nginx/backup'
+        DEPLOY_TIMESTAMP = "${new Date().format('yyyyMMdd-HHmmss')}"
+    }
+    
+    parameters {
+        string(name: 'BUILD_NUMBER', defaultValue: '', description: 'Build number from build job')
+        string(name: 'BUILD_JOB_NAME', defaultValue: '', description: 'Name of the build job')
+    }
+    
+    stages {
+        stage('Retrieve Build Artifacts') {
+            steps {
+                echo "Retrieving build artifacts from job: ${params.BUILD_JOB_NAME}#${params.BUILD_NUMBER}"
+                script {
+                    try {
+                        if (params.BUILD_JOB_NAME && params.BUILD_NUMBER) {
+                            echo "Copying artifacts from ${params.BUILD_JOB_NAME} build ${params.BUILD_NUMBER}"
+                            copyArtifacts(
+                                projectName: "${params.BUILD_JOB_NAME}",
+                                selector: specific("${params.BUILD_NUMBER}"),
+                                filter: 'dist/**/*',
+                                target: '.',
+                                fingerprintArtifacts: true,
+                                optional: false
+                            )
+                        } else {
+                            echo "No build parameters provided, trying to unstash from current pipeline"
+                            try {
+                                unstash 'build-artifacts'
+                            } catch (Exception e) {
+                                error("No build artifacts found. Make sure the build job completed successfully and archived the dist folder.")
+                            }
+                        }
+                        
+                        // Verify artifacts were copied
+                        bat 'dir dist'
+                        
+                    } catch (Exception e) {
+                        echo "Failed to retrieve artifacts: ${e.getMessage()}"
+                        error("Could not retrieve build artifacts. Check if the build job '${params.BUILD_JOB_NAME}' build #${params.BUILD_NUMBER} exists and has archived artifacts.")
+                    }
+                }
+            }
+        }
+        
+        stage('Backup Current Deployment') {
+            steps {
+                echo 'Creating backup of current deployment...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo mkdir -p ${BACKUP_DIR}"
+                    ssh ${VM_USER}@${VM_HOST} "if [ -d '${NGINX_ROOT}' ]; then sudo cp -r ${NGINX_ROOT} ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}; fi"
+                """
+            }
+        }
+        
+        stage('Stop Nginx') {
+            steps {
+                echo 'Stopping nginx service...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl stop nginx"
+                """
+            }
+        }
+        
+        stage('Deploy to Nginx') {
+            steps {
+                echo 'Deploying files to nginx...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
+                    scp -r dist/* ${VM_USER}@${VM_HOST}:/tmp/nginx_deploy/
+                    ssh ${VM_USER}@${VM_HOST} "sudo mv /tmp/nginx_deploy/* ${NGINX_ROOT}/"
+                    ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
+                    ssh ${VM_USER}@${VM_HOST} "sudo chmod -R 755 ${NGINX_ROOT}"
+                """
+            }
+        }
+        
+        stage('Start Nginx') {
+            steps {
+                echo 'Starting nginx service...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl start nginx"
+                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl enable nginx"
+                """
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo 'Performing health check...'
+                script {
+                    def healthCheckPassed = false
+                    retry(3) {
+                        bat """
+                            ssh ${VM_USER}@${VM_HOST} "sudo curl -f http://localhost || exit 1"
+                        """
+                        healthCheckPassed = true
+                    }
+                    if (!healthCheckPassed) {
+                        error("Health check failed after 3 attempts")
+                    }
+                }
+            }
+        }
+        
+        stage('Cleanup Old Backups') {
+            steps {
+                echo 'Cleaning up old backups (keeping last 5)...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "cd ${BACKUP_DIR} && sudo ls -t | tail -n +6 | xargs -r sudo rm -rf"
+                """
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+        success {
+            echo "Deployment completed successfully to ${VM_HOST}!"
+            echo "Backup created: ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}"
+        }
+        failure {
+            echo 'Deployment failed! Starting rollback...'
+            
+        }
+    }
+}
