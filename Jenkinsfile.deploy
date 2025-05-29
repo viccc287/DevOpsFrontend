@@ -53,41 +53,49 @@ pipeline {
         stage('Backup Current Deployment') {
             steps {
                 echo 'Creating backup of current deployment...'
-                bat """
-                    ssh ${VM_USER}@${VM_HOST} "mkdir -p ${BACKUP_DIR}"
-                    ssh ${VM_USER}@${VM_HOST} "if [ -d '${NGINX_ROOT}' ]; then cp -r ${NGINX_ROOT} ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}; fi"
-                """
+                sshagent(['ssh-vm-key']) {
+                    bat """
+                        ssh ${VM_USER}@${VM_HOST} "mkdir -p ${BACKUP_DIR}"
+                        ssh ${VM_USER}@${VM_HOST} "if [ -d '${NGINX_ROOT}' ]; then cp -r ${NGINX_ROOT} ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}; fi"
+                    """
+                }
             }
         }
         
         stage('Stop Nginx') {
             steps {
                 echo 'Stopping nginx service...'
-                bat """
-                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl stop nginx"
-                """
+                sshagent(['ssh-vm-key']) {
+                    bat """
+                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl stop nginx"
+                    """
+                }
             }
         }
         
         stage('Deploy to Nginx') {
             steps {
                 echo 'Deploying files to nginx...'
-                bat """
-                    ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
-                    scp -r dist/* ${VM_USER}@${VM_HOST}:${NGINX_ROOT}/
-                    ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
-                    ssh ${VM_USER}@${VM_HOST} "sudo chmod -R 755 ${NGINX_ROOT}"
-                """
+                sshagent(['ssh-vm-key']) {
+                    bat """
+                        ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
+                        scp -r dist/* ${VM_USER}@${VM_HOST}:${NGINX_ROOT}/
+                        ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
+                        ssh ${VM_USER}@${VM_HOST} "sudo chmod -R 755 ${NGINX_ROOT}"
+                    """
+                }
             }
         }
         
         stage('Start Nginx') {
             steps {
                 echo 'Starting nginx service...'
-                bat """
-                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl start nginx"
-                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl enable nginx"
-                """
+                sshagent(['ssh-vm-key']) {
+                    bat """
+                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl start nginx"
+                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl enable nginx"
+                    """
+                }
             }
         }
         
@@ -97,9 +105,11 @@ pipeline {
                 script {
                     def healthCheckPassed = false
                     retry(3) {
-                        bat """
-                            ssh ${VM_USER}@${VM_HOST} "curl -f http://localhost || exit 1"
-                        """
+                        sshagent(['ssh-vm-key']) {
+                            bat """
+                                ssh ${VM_USER}@${VM_HOST} "curl -f http://localhost || exit 1"
+                            """
+                        }
                         healthCheckPassed = true
                     }
                     if (!healthCheckPassed) {
@@ -112,9 +122,11 @@ pipeline {
         stage('Cleanup Old Backups') {
             steps {
                 echo 'Cleaning up old backups (keeping last 5)...'
-                bat """
-                    ssh ${VM_USER}@${VM_HOST} "cd ${BACKUP_DIR} && ls -t | tail -n +6 | xargs -r rm -rf"
-                """
+                sshagent(['ssh-vm-key']) {
+                    bat """
+                        ssh ${VM_USER}@${VM_HOST} "cd ${BACKUP_DIR} && ls -t | tail -n +6 | xargs -r rm -rf"
+                    """
+                }
             }
         }
     }
