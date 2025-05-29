@@ -19,16 +19,32 @@ pipeline {
             steps {
                 echo "Retrieving build artifacts from job: ${params.BUILD_JOB_NAME}#${params.BUILD_NUMBER}"
                 script {
-                    if (params.BUILD_JOB_NAME && params.BUILD_NUMBER) {
-                        copyArtifacts(
-                            projectName: params.BUILD_JOB_NAME,
-                            selector: specific(params.BUILD_NUMBER),
-                            filter: 'dist/**/*',
-                            target: '.'
-                        )
-                    } else {
-                        // Fallback: try to unstash from current build
-                        unstash 'build-artifacts'
+                    try {
+                        if (params.BUILD_JOB_NAME && params.BUILD_NUMBER) {
+                            echo "Copying artifacts from ${params.BUILD_JOB_NAME} build ${params.BUILD_NUMBER}"
+                            copyArtifacts(
+                                projectName: "${params.BUILD_JOB_NAME}",
+                                selector: specific("${params.BUILD_NUMBER}"),
+                                filter: 'dist/**/*',
+                                target: '.',
+                                fingerprintArtifacts: true,
+                                optional: false
+                            )
+                        } else {
+                            echo "No build parameters provided, trying to unstash from current pipeline"
+                            try {
+                                unstash 'build-artifacts'
+                            } catch (Exception e) {
+                                error("No build artifacts found. Make sure the build job completed successfully and archived the dist folder.")
+                            }
+                        }
+                        
+                        // Verify artifacts were copied
+                        bat 'dir dist'
+                        
+                    } catch (Exception e) {
+                        echo "Failed to retrieve artifacts: ${e.getMessage()}"
+                        error("Could not retrieve build artifacts. Check if the build job '${params.BUILD_JOB_NAME}' build #${params.BUILD_NUMBER} exists and has archived artifacts.")
                     }
                 }
             }
@@ -114,20 +130,7 @@ pipeline {
         }
         failure {
             echo 'Deployment failed! Starting rollback...'
-            script {
-                try {
-                    bat """
-                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl stop nginx"
-                        ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
-                        ssh ${VM_USER}@${VM_HOST} "if [ -d '${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}' ]; then sudo cp -r ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}/* ${NGINX_ROOT}/; fi"
-                        ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
-                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl start nginx"
-                    """
-                    echo 'Rollback completed successfully!'
-                } catch (Exception e) {
-                    echo "Rollback failed: ${e.getMessage()}"
-                }
-            }
+            
         }
     }
 }
