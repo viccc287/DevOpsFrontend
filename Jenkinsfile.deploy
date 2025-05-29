@@ -54,8 +54,8 @@ pipeline {
             steps {
                 echo 'Creating backup of current deployment...'
                 bat """
-                    ssh ${VM_USER}@${VM_HOST} "mkdir -p ${BACKUP_DIR}"
-                    ssh ${VM_USER}@${VM_HOST} "if [ -d '${NGINX_ROOT}' ]; then cp -r ${NGINX_ROOT} ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}; fi"
+                    ssh ${VM_USER}@${VM_HOST} "sudo mkdir -p ${BACKUP_DIR}"
+                    ssh ${VM_USER}@${VM_HOST} "if [ -d '${NGINX_ROOT}' ]; then sudo cp -r ${NGINX_ROOT} ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}; fi"
                 """
             }
         }
@@ -74,7 +74,8 @@ pipeline {
                 echo 'Deploying files to nginx...'
                 bat """
                     ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
-                    scp -r dist/* ${VM_USER}@${VM_HOST}:${NGINX_ROOT}/
+                    scp -r dist/* ${VM_USER}@${VM_HOST}:/tmp/nginx_deploy/
+                    ssh ${VM_USER}@${VM_HOST} "sudo mv /tmp/nginx_deploy/* ${NGINX_ROOT}/"
                     ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
                     ssh ${VM_USER}@${VM_HOST} "sudo chmod -R 755 ${NGINX_ROOT}"
                 """
@@ -98,7 +99,7 @@ pipeline {
                     def healthCheckPassed = false
                     retry(3) {
                         bat """
-                            ssh ${VM_USER}@${VM_HOST} "curl -f http://localhost || exit 1"
+                            ssh ${VM_USER}@${VM_HOST} "sudo curl -f http://localhost || exit 1"
                         """
                         healthCheckPassed = true
                     }
@@ -113,7 +114,7 @@ pipeline {
             steps {
                 echo 'Cleaning up old backups (keeping last 5)...'
                 bat """
-                    ssh ${VM_USER}@${VM_HOST} "cd ${BACKUP_DIR} && ls -t | tail -n +6 | xargs -r rm -rf"
+                    ssh ${VM_USER}@${VM_HOST} "cd ${BACKUP_DIR} && sudo ls -t | tail -n +6 | xargs -r sudo rm -rf"
                 """
             }
         }
