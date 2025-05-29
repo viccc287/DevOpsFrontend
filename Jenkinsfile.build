@@ -34,33 +34,20 @@ pipeline {
         stage('Archive Build Artifacts') {
             steps {
                 echo 'Archiving build artifacts...'
-                script {
-                    // Verify dist folder exists
-                    if (fileExists('dist')) {
-                        archiveArtifacts artifacts: 'dist/**/*', fingerprint: true, allowEmptyArchive: false
-                        stash includes: 'dist/**/*', name: 'build-artifacts'
-                        echo "Build artifacts archived successfully"
-                    } else {
-                        error("dist folder not found. Build may have failed.")
-                    }
-                }
+                archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
+                stash includes: 'dist/**/*', name: 'build-artifacts'
             }
         }
         
         stage('Trigger Deploy') {
             steps {
                 echo 'Triggering deployment pipeline...'
-                script {
-                    def deployJob = build job: 'frontend-deploy', 
-                          parameters: [
-                              string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}"),
-                              string(name: 'BUILD_JOB_NAME', value: "${JOB_NAME}")
-                          ],
-                          wait: false,
-                          propagate: false
-                    
-                    echo "Deploy job triggered: ${deployJob.getFullDisplayName()}"
-                }
+                build job: 'frontend-deploy', 
+                      parameters: [
+                          string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}"),
+                          string(name: 'BUILD_JOB_NAME', value: "${JOB_NAME}")
+                      ],
+                      wait: false
             }
         }
     }
