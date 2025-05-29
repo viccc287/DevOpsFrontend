@@ -2,8 +2,8 @@ pipeline {
     agent any
     
     environment {
-        VM_HOST = '192.168.0.35' // Cambiar por la IP de tu VM
-        VM_USER = 'devops' // Cambiar por tu usuario de VM
+        VM_HOST = '192.168.0.35' 
+        VM_USER = 'devops'
         NGINX_ROOT = '/usr/share/nginx/html'
         BACKUP_DIR = '/usr/share/nginx/backup'
         DEPLOY_TIMESTAMP = "${new Date().format('yyyyMMdd-HHmmss')}"
