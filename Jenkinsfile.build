@@ -1,0 +1,69 @@
+pipeline {
+    agent any
+    
+    environment {
+        NODE_VERSION = '18'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing dependencies...'
+                bat '''
+                    cd DevOpsFrontend
+                    npm install
+                '''
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo 'Building application...'
+                bat '''
+                    cd DevOpsFrontend
+                    npm run build
+                '''
+            }
+        }
+        
+        stage('Archive Build Artifacts') {
+            steps {
+                echo 'Archiving build artifacts...'
+                archiveArtifacts artifacts: 'DevOpsFrontend/dist/**/*', fingerprint: true
+                stash includes: 'DevOpsFrontend/dist/**/*', name: 'build-artifacts'
+            }
+        }
+        
+        stage('Trigger Deploy') {
+            steps {
+                echo 'Triggering deployment pipeline...'
+                build job: 'frontend-deploy', 
+                      parameters: [
+                          string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}"),
+                          string(name: 'BUILD_JOB_NAME', value: "${JOB_NAME}")
+                      ],
+                      wait: false
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+        success {
+            echo 'Build completed successfully!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
