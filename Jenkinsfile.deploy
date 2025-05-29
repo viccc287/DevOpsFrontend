@@ -1,49 +1,35 @@
 pipeline {
     agent any
     
-    parameters {
-        string(name: 'BUILD_NUMBER', defaultValue: '1', description: 'Build number from build job')
-        string(name: 'BUILD_JOB_NAME', defaultValue: 'frontend-build', description: 'Name of the build job')
-    }
-    
     environment {
         VM_HOST = '192.168.0.35' // Cambiar por la IP de tu VM
         VM_USER = 'devops' // Cambiar por tu usuario de VM
-        NGINX_ROOT = '/usr/share/nginx/html' 
+        NGINX_ROOT = '/usr/share/nginx/html'
         BACKUP_DIR = '/usr/share/nginx/backup'
+        DEPLOY_TIMESTAMP = "${new Date().format('yyyyMMdd-HHmmss')}"
+    }
+    
+    parameters {
+        string(name: 'BUILD_NUMBER', defaultValue: '', description: 'Build number from build job')
+        string(name: 'BUILD_JOB_NAME', defaultValue: '', description: 'Name of the build job')
     }
     
     stages {
-        stage('Prepare Deployment') {
+        stage('Retrieve Build Artifacts') {
             steps {
-                echo 'Preparing for deployment...'
+                echo "Retrieving build artifacts from job: ${params.BUILD_JOB_NAME}#${params.BUILD_NUMBER}"
                 script {
-                    echo "Deploying build #${params.BUILD_NUMBER} from job ${params.BUILD_JOB_NAME}"
-                }
-            }
-        }
-        
-        stage('Copy Build Artifacts from Build Job') {
-            steps {
-                echo 'Copying build artifacts...'
-                script {
-                    // Copiar artifacts del job de build
-                    copyArtifacts(
-                        projectName: "${params.BUILD_JOB_NAME}",
-                        selector: specific("${params.BUILD_NUMBER}"),
-                        target: '.'
-                    )
-                }
-            }
-        }
-        
-        stage('Verify VM Connection') {
-            steps {
-                echo 'Testing SSH connection to VM...'
-                script {
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "echo Connection successful"
-                    """
+                    if (params.BUILD_JOB_NAME && params.BUILD_NUMBER) {
+                        copyArtifacts(
+                            projectName: params.BUILD_JOB_NAME,
+                            selector: specific(params.BUILD_NUMBER),
+                            filter: 'dist/**/*',
+                            target: '.'
+                        )
+                    } else {
+                        // Fallback: try to unstash from current build
+                        unstash 'build-artifacts'
+                    }
                 }
             }
         }
@@ -51,116 +37,97 @@ pipeline {
         stage('Backup Current Deployment') {
             steps {
                 echo 'Creating backup of current deployment...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "mkdir -p ${BACKUP_DIR}"
+                    ssh ${VM_USER}@${VM_HOST} "if [ -d '${NGINX_ROOT}' ]; then cp -r ${NGINX_ROOT} ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}; fi"
+                """
+            }
+        }
+        
+        stage('Stop Nginx') {
+            steps {
+                echo 'Stopping nginx service...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl stop nginx"
+                """
+            }
+        }
+        
+        stage('Deploy to Nginx') {
+            steps {
+                echo 'Deploying files to nginx...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
+                    scp -r dist/* ${VM_USER}@${VM_HOST}:${NGINX_ROOT}/
+                    ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
+                    ssh ${VM_USER}@${VM_HOST} "sudo chmod -R 755 ${NGINX_ROOT}"
+                """
+            }
+        }
+        
+        stage('Start Nginx') {
+            steps {
+                echo 'Starting nginx service...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl start nginx"
+                    ssh ${VM_USER}@${VM_HOST} "sudo systemctl enable nginx"
+                """
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo 'Performing health check...'
                 script {
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo mkdir -p %BACKUP_DIR% && if [ -d \"%NGINX_ROOT%\" ]; then sudo cp -r %NGINX_ROOT% %BACKUP_DIR%/backup-${(date +%%Y%%m%%d-%%H%%M%%S)}; fi"
-                    """
+                    def healthCheckPassed = false
+                    retry(3) {
+                        bat """
+                            ssh ${VM_USER}@${VM_HOST} "curl -f http://localhost || exit 1"
+                        """
+                        healthCheckPassed = true
+                    }
+                    if (!healthCheckPassed) {
+                        error("Health check failed after 3 attempts")
+                    }
                 }
             }
         }
         
-        stage('Deploy to VM') {
+        stage('Cleanup Old Backups') {
             steps {
-                echo 'Deploying application to VM...'
-                script {
-                    // Crear directorio temporal en VM
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "mkdir -p /tmp/frontend-deploy"
-                    """
-                    
-                    // Copiar archivos del build a la VM
-                    bat """
-                        scp -o StrictHostKeyChecking=no -r DevOpsFrontend\\dist\\* %VM_USER%@%VM_HOST%:/tmp/frontend-deploy/
-                    """
-                    
-                    // Mover archivos a nginx y configurar permisos
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo rm -rf %NGINX_ROOT%/* && sudo cp -r /tmp/frontend-deploy/* %NGINX_ROOT%/ && sudo chown -R www-data:www-data %NGINX_ROOT% && sudo chmod -R 755 %NGINX_ROOT% && rm -rf /tmp/frontend-deploy"
-                    """
-                }
-            }
-        }
-        
-        stage('Configure Nginx') {
-            steps {
-                echo 'Configuring Nginx for React SPA...'
-                script {
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo tee /etc/nginx/sites-available/frontend > /dev/null <<EOF
-server {
-    listen 80;
-    server_name _;
-    root %NGINX_ROOT%;
-    index index.html;
-
-    # Handle React Router (SPA)
-    location / {
-        try_files \\$uri \\$uri/ /index.html;
-    }
-
-    # Cache static assets
-    location ~* \\.(js^|css^|png^|jpg^|jpeg^|gif^|ico^|svg)$ {
-        expires 1y;
-        add_header Cache-Control \"public, immutable\";
-    }
-
-    # Security headers
-    add_header X-Frame-Options \"SAMEORIGIN\" always;
-    add_header X-Content-Type-Options \"nosniff\" always;
-    add_header X-XSS-Protection \"1; mode=block\" always;
-}
-EOF
-&& sudo ln -sf /etc/nginx/sites-available/frontend /etc/nginx/sites-enabled/ && sudo rm -f /etc/nginx/sites-enabled/default && sudo nginx -t"
-                    """
-                }
-            }
-        }
-        
-        stage('Restart Services') {
-            steps {
-                echo 'Restarting Nginx...'
-                script {
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo systemctl reload nginx && sudo systemctl status nginx --no-pager"
-                    """
-                }
-            }
-        }
-        
-        stage('Verify Deployment') {
-            steps {
-                echo 'Verifying deployment...'
-                script {
-                    bat """
-                        timeout /t 5 /nobreak
-                        curl -s -o nul -w "%%{http_code}" http://%VM_HOST% > response.txt
-                        set /p response=<response.txt
-                        if "!response!"=="200" (
-                            echo Deployment successful! Application is responding with HTTP 200
-                        ) else (
-                            echo Deployment verification failed! HTTP response: !response!
-                            exit /b 1
-                        )
-                        del response.txt
-                    """
-                }
+                echo 'Cleaning up old backups (keeping last 5)...'
+                bat """
+                    ssh ${VM_USER}@${VM_HOST} "cd ${BACKUP_DIR} && ls -t | tail -n +6 | xargs -r rm -rf"
+                """
             }
         }
     }
     
     post {
         always {
-            echo 'Cleaning up deployment workspace...'
+            echo 'Cleaning up workspace...'
             cleanWs()
         }
         success {
-            echo 'Deployment completed successfully!'
-            script {
-                echo "Application deployed successfully to http://${VM_HOST}"
-            }
+            echo "Deployment completed successfully to ${VM_HOST}!"
+            echo "Backup created: ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}"
         }
         failure {
-            echo 'Deployment failed!'
+            echo 'Deployment failed! Starting rollback...'
+            script {
+                try {
+                    bat """
+                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl stop nginx"
+                        ssh ${VM_USER}@${VM_HOST} "sudo rm -rf ${NGINX_ROOT}/*"
+                        ssh ${VM_USER}@${VM_HOST} "if [ -d '${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}' ]; then sudo cp -r ${BACKUP_DIR}/backup-${DEPLOY_TIMESTAMP}/* ${NGINX_ROOT}/; fi"
+                        ssh ${VM_USER}@${VM_HOST} "sudo chown -R www-data:www-data ${NGINX_ROOT}"
+                        ssh ${VM_USER}@${VM_HOST} "sudo systemctl start nginx"
+                    """
+                    echo 'Rollback completed successfully!'
+                } catch (Exception e) {
+                    echo "Rollback failed: ${e.getMessage()}"
+                }
+            }
         }
     }
 }
