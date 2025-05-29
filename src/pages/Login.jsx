@@ -84,7 +84,7 @@ const Login = () => {
             Fleet Manager
           </Heading>
           <Text size="4" color="gray" style={{ textAlign: "center" }}>
-            Professional Fleet Management System
+            Fleet Management System
           </Text>
         </Flex>
       </Flex>
