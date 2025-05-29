@@ -53,7 +53,7 @@ pipeline {
                 echo 'Creating backup of current deployment...'
                 script {
                     bat """
-                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo mkdir -p %BACKUP_DIR% && if [ -d \"%NGINX_ROOT%\" ]; then sudo cp -r %NGINX_ROOT% %BACKUP_DIR%/backup-$(date +%%Y%%m%%d-%%H%%M%%S); fi"
+                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo mkdir -p %BACKUP_DIR% && if [ -d \"%NGINX_ROOT%\" ]; then sudo cp -r %NGINX_ROOT% %BACKUP_DIR%/backup-${(date +%%Y%%m%%d-%%H%%M%%S)}; fi"
                     """
                 }
             }
@@ -80,7 +80,41 @@ pipeline {
                 }
             }
         }
-    
+        
+        stage('Configure Nginx') {
+            steps {
+                echo 'Configuring Nginx for React SPA...'
+                script {
+                    bat """
+                        ssh -o StrictHostKeyChecking=no %VM_USER%@%VM_HOST% "sudo tee /etc/nginx/sites-available/frontend > /dev/null <<EOF
+server {
+    listen 80;
+    server_name _;
+    root %NGINX_ROOT%;
+    index index.html;
+
+    # Handle React Router (SPA)
+    location / {
+        try_files \\$uri \\$uri/ /index.html;
+    }
+
+    # Cache static assets
+    location ~* \\.(js^|css^|png^|jpg^|jpeg^|gif^|ico^|svg)$ {
+        expires 1y;
+        add_header Cache-Control \"public, immutable\";
+    }
+
+    # Security headers
+    add_header X-Frame-Options \"SAMEORIGIN\" always;
+    add_header X-Content-Type-Options \"nosniff\" always;
+    add_header X-XSS-Protection \"1; mode=block\" always;
+}
+EOF
+&& sudo ln -sf /etc/nginx/sites-available/frontend /etc/nginx/sites-enabled/ && sudo rm -f /etc/nginx/sites-enabled/default && sudo nginx -t"
+                    """
+                }
+            }
+        }
         
         stage('Restart Services') {
             steps {
